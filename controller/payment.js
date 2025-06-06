@@ -1,10 +1,10 @@
-const Payment = require("../model/payment"); 
+const Payment = require("../model/payment");
 
 // Controller to create a new payment
 exports.createPayment = async (req, res) => {
   try {
-    const { quotationId, totalAmount, advancedAmount, paymentMode,status,paymentRemarks,comment } = req.body;
-console.log(quotationId, totalAmount, advancedAmount, paymentMode,paymentRemarks,comment)
+    const { quotationId, totalAmount, advancedAmount, paymentMode, status, paymentRemarks, comment } = req.body;
+    console.log(quotationId, totalAmount, advancedAmount, paymentMode, paymentRemarks, comment)
 
 
     // Create a new payment document
@@ -20,7 +20,7 @@ console.log(quotationId, totalAmount, advancedAmount, paymentMode,paymentRemarks
 
     // Save the payment to the database
     const savedPayment = await payment.save();
-    res.status(200).json({message:"Successfully",savedPayment});
+    res.status(200).json({ message: "Successfully", savedPayment });
   } catch (error) {
     res.status(500).json({ message: "Error creating payment", error: error.message });
   }
@@ -39,7 +39,7 @@ exports.getAllPayments = async (req, res) => {
 exports.getPaymentById = async (req, res) => {
   try {
     const { id } = req.params;
-    const payment = await Payment.findById({id:id}).populate("quotationId");
+    const payment = await Payment.findById({ id: id }).populate("quotationId");
 
     if (!payment) {
       return res.status(404).json({ message: "Payment not found" });

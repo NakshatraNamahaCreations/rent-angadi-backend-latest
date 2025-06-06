@@ -1,10 +1,10 @@
 const RefurbishmentData = require("../model/refurbishmentdata");
-const mongoose =require("mongoose")
+const mongoose = require("mongoose")
 
 // Create a new refurbishment record with multiple products
 exports.createRefurbishment = async (req, res) => {
   try {
-    const {orderId, products, shippingAddress, floorManager, status } = req.body;
+    const { orderId, products, shippingAddress, floorManager, status } = req.body;
 
     // Validate required fields
     if (!products || !shippingAddress || !floorManager || !status) {
@@ -50,7 +50,7 @@ exports.getAllRefurbishments = async (req, res) => {
 exports.getRefurbishmentById = async (req, res) => {
   const id = req.params.id;
   try {
-    const refurbishment = await RefurbishmentData.findOne({orderId:id} );
+    const refurbishment = await RefurbishmentData.findOne({ orderId: id });
     if (!refurbishment) return res.status(404).json({ message: "Refurbishment not found" });
 
     res.status(200).json(refurbishment);

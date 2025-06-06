@@ -10,7 +10,7 @@ const appsubcatSchema = new mongoose.Schema({
   subcatimg: {
     type: String,
   },
-},{ timestamps: true });
+}, { timestamps: true });
 
 const appsubcatModel = mongoose.model("appsubcat", appsubcatSchema);
 module.exports = appsubcatModel;

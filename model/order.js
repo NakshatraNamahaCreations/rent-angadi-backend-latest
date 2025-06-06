@@ -40,8 +40,8 @@ const SlotSchema = new mongoose.Schema({
 const orderSchema = new mongoose.Schema(
   {
     ClientId: {
-      type: mongoose.Schema.Types.ObjectId, 
-      ref: "Client", 
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Client",
       required: true,
     },
     clientName: {
@@ -52,8 +52,8 @@ const orderSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    placeaddress:{
-      type:String,
+    placeaddress: {
+      type: String,
     },
     executivename: {
       type: String,
@@ -74,11 +74,11 @@ const orderSchema = new mongoose.Schema(
     products: [
       {
         productId: {
-          type: String, 
+          type: String,
         },
         productName: {
-          type: String, 
-          ref: "Product", 
+          type: String,
+          ref: "Product",
           // required: true,
         },
         quantity: {
@@ -109,22 +109,22 @@ const orderSchema = new mongoose.Schema(
       enum: ["Confirm", "Approved", "Completed", "cancelled"], // Ensures only valid statuses
       default: "Confirm",
     },
-    productrefurbishment:{
+    productrefurbishment: {
       type: Array,
     },
-    damagerefurbishment:{
-      type:String,
+    damagerefurbishment: {
+      type: String,
     },
-    shippingaddressrefurbishment:{
-      type:String,
+    shippingaddressrefurbishment: {
+      type: String,
     },
-    expense :{
+    expense: {
       type: Number,
     },
-    floormanager:{
-      type:String,
+    floormanager: {
+      type: String,
     },
-    labourecharge: { type: Number, default: 0 }, 
+    labourecharge: { type: Number, default: 0 },
     transportcharge: { type: Number, default: 0 },
     discount: {
       type: Number,
@@ -132,10 +132,10 @@ const orderSchema = new mongoose.Schema(
     GST: {
       type: Number,
     },
-    adjustments:{
+    adjustments: {
       type: Number,
     },
-    
+
   },
   {
     timestamps: true,

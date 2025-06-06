@@ -64,7 +64,7 @@ router.get(
 );
 
 router.get("/products-with-inventory", ProductManagemntController.getProductsWithInventory);
-router.post("/bulkuploadproduct",ProductManagemntController.addServicesViaExcel)
+router.post("/bulkuploadproduct", ProductManagemntController.addServicesViaExcel)
 
 
 module.exports = router;

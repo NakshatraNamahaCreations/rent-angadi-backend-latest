@@ -48,7 +48,7 @@ const EnquirySchema = new mongoose.Schema(
       type: Number,
       require: true,
     },
-    
+
     adjustments: {
       type: Number,
     },

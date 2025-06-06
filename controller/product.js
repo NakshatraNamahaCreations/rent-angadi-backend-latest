@@ -42,24 +42,24 @@ class ProductManagement {
       let file1 = req.files[1]?.filename;
       let file2 = req.files[2]?.filename;
       let file3 = req.files[3]?.filename;
-      
- console.log(ProductName,
-  ProductCategory,
-  ProductSubcategory,
-  ProductDesc,
-  ProductFeature,
-  ProductPrice,
-  offerPrice,
-  ProductGst,
-  Productdetails,
-  qty,
-  minqty,
-  ProductStock,
-  activeStatus,
-  Material,
-  ProductSize,
-  Color,
-  seater,file,"etst")
+
+      console.log(ProductName,
+        ProductCategory,
+        ProductSubcategory,
+        ProductDesc,
+        ProductFeature,
+        ProductPrice,
+        offerPrice,
+        ProductGst,
+        Productdetails,
+        qty,
+        minqty,
+        ProductStock,
+        activeStatus,
+        Material,
+        ProductSize,
+        Color,
+        seater, file, "etst")
       // const product = await ProductManagementModel.findOne()
       //   .sort({ ProductSKU: -1 })
       //   .exec();
@@ -104,9 +104,9 @@ class ProductManagement {
       add.save().then((data) => {
         return res
           .status(200)
-          .json({ success: "User added successfully",  data });
+          .json({ success: "User added successfully", data });
       });
-    
+
     } catch (error) {
       return res.status(500).json({ error: "something went wrong" });
     }

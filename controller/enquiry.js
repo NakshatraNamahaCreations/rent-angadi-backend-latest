@@ -279,142 +279,142 @@ class Enquiry {
     const { productId, quantity } = req.body; // Product ID and updated quantity
 
     try {
-        // Find the enquiry document
-        const enquiry = await Enquirymodel.findOne({ _id: id });
-
-        if (!enquiry) {
-            return res.status(404).json({ error: "Enquiry not found" });
-        }
-
-        // Find the product in the products array
-        const productIndex = enquiry.products.findIndex(
-            (product) => product.productId === productId
-        );
-
-        if (productIndex === -1) {
-            return res.status(404).json({ error: "Product not found in enquiry" });
-        }
-
-        // Update quantity and total for the selected product
-        enquiry.products[productIndex].quantity = quantity;
-        enquiry.products[productIndex].total =
-            quantity * enquiry.products[productIndex].price;
-
-        // Recalculate GrandTotal (sum of all product totals)
-        const newGrandTotal = enquiry.products.reduce(
-            (sum, product) => sum + product.total,
-            0
-        );
-
-        // Update the document in the database
-        const updatedEnquiry = await Enquirymodel.findOneAndUpdate(
-            { _id: id, "products.productId": productId },
-            {
-                $set: {
-                    "products.$.quantity": quantity,
-                    "products.$.total": quantity * enquiry.products[productIndex].price,
-                    "GrandTotal": newGrandTotal
-                }
-            },
-            { new: true } // Return the updated document
-        );
-
-        return res.status(200).json({
-            success: "Product quantity and GrandTotal updated successfully",
-            data: updatedEnquiry,
-        });
-
-    } catch (error) {
-        console.error("Error updating products in enquiry:", error.message);
-        return res
-            .status(500)
-            .json({ error: "Failed to update product in Enquiry" });
-    }
-}
-
-
-async deleteProductFromEnquiry(req, res) {
-  const { id } = req.params; 
-  const { productId } = req.body; 
-  console.log(productId,"productId")
-
-  try {
       // Find the enquiry document
       const enquiry = await Enquirymodel.findOne({ _id: id });
 
       if (!enquiry) {
-          return res.status(404).json({ error: "Enquiry not found" });
+        return res.status(404).json({ error: "Enquiry not found" });
       }
 
-   const updatedProducts = enquiry.products.filter(
-          (product) => product.productId !== productId
+      // Find the product in the products array
+      const productIndex = enquiry.products.findIndex(
+        (product) => product.productId === productId
+      );
+
+      if (productIndex === -1) {
+        return res.status(404).json({ error: "Product not found in enquiry" });
+      }
+
+      // Update quantity and total for the selected product
+      enquiry.products[productIndex].quantity = quantity;
+      enquiry.products[productIndex].total =
+        quantity * enquiry.products[productIndex].price;
+
+      // Recalculate GrandTotal (sum of all product totals)
+      const newGrandTotal = enquiry.products.reduce(
+        (sum, product) => sum + product.total,
+        0
+      );
+
+      // Update the document in the database
+      const updatedEnquiry = await Enquirymodel.findOneAndUpdate(
+        { _id: id, "products.productId": productId },
+        {
+          $set: {
+            "products.$.quantity": quantity,
+            "products.$.total": quantity * enquiry.products[productIndex].price,
+            "GrandTotal": newGrandTotal
+          }
+        },
+        { new: true } // Return the updated document
+      );
+
+      return res.status(200).json({
+        success: "Product quantity and GrandTotal updated successfully",
+        data: updatedEnquiry,
+      });
+
+    } catch (error) {
+      console.error("Error updating products in enquiry:", error.message);
+      return res
+        .status(500)
+        .json({ error: "Failed to update product in Enquiry" });
+    }
+  }
+
+
+  async deleteProductFromEnquiry(req, res) {
+    const { id } = req.params;
+    const { productId } = req.body;
+    console.log(productId, "productId")
+
+    try {
+      // Find the enquiry document
+      const enquiry = await Enquirymodel.findOne({ _id: id });
+
+      if (!enquiry) {
+        return res.status(404).json({ error: "Enquiry not found" });
+      }
+
+      const updatedProducts = enquiry.products.filter(
+        (product) => product.productId !== productId
       );
 
       if (updatedProducts.length === enquiry.products.length) {
-          return res.status(404).json({ error: "Product not found in enquiry" });
+        return res.status(404).json({ error: "Product not found in enquiry" });
       }
 
       const newGrandTotal = updatedProducts.reduce(
-          (sum, product) => sum + product.total,
-          0
+        (sum, product) => sum + product.total,
+        0
       );
 
       // Update the enquiry document
       const updatedEnquiry = await Enquirymodel.findOneAndUpdate(
-          { _id: id },
-          {
-              $set: {
-                  products: updatedProducts,
-                  GrandTotal: newGrandTotal
-              }
-          },
-          { new: true } // Return the updated document
+        { _id: id },
+        {
+          $set: {
+            products: updatedProducts,
+            GrandTotal: newGrandTotal
+          }
+        },
+        { new: true } // Return the updated document
       );
 
       return res.status(200).json({
-          success: "Product removed successfully",
-          data: updatedEnquiry,
+        success: "Product removed successfully",
+        data: updatedEnquiry,
       });
 
-  } catch (error) {
+    } catch (error) {
       console.error("Error removing product from enquiry:", error.message);
       return res
-          .status(500)
-          .json({ error: "Failed to remove product from enquiry" });
+        .status(500)
+        .json({ error: "Failed to remove product from enquiry" });
+    }
   }
-}
 
 
-async addProductToEnquiry(req, res) {
-  const { id } = req.params; 
-  const { productId, productName, quantity, price ,StockAvailable} = req.body;
-  console.log(price,"price")
-console.log("id not fount");
-  try {
+  async addProductToEnquiry(req, res) {
+    const { id } = req.params;
+    const { productId, productName, quantity, price, StockAvailable } = req.body;
+    console.log(price, "price")
+    console.log("id not fount");
+    try {
       const enquiry = await Enquirymodel.findOne({ _id: id });
 
       if (!enquiry) {
-          return res.status(404).json({ error: "Enquiry not found" });
+        return res.status(404).json({ error: "Enquiry not found" });
       }
 
       const existingProduct = enquiry.products.find(
-          (product) => product.productId === productId
+        (product) => product.productId === productId
       );
 
       if (existingProduct) {
-          return res.status(400).json({ error: "Product already exists in enquiry" });
+        return res.status(400).json({ error: "Product already exists in enquiry" });
       }
       const numericPrice = Number(price) || 0;
       const numericQuantity = Number(quantity) || 0;
       const totalPrice = numericPrice * numericQuantity;
 
       const newProduct = {
-          productId,
-          productName,
-          quantity: numericQuantity, // ✅ Ensure numeric value
-          price: numericPrice,  
-          total: totalPrice,
-          StockAvailable,
+        productId,
+        productName,
+        quantity: numericQuantity, // ✅ Ensure numeric value
+        price: numericPrice,
+        total: totalPrice,
+        StockAvailable,
       };
 
       // Push the new product into the products array
@@ -422,30 +422,30 @@ console.log("id not fount");
 
       // Recalculate GrandTotal (sum of all product totals)
       const newGrandTotal = enquiry.products.reduce(
-          (sum, product) => sum + product.total,
-          0
+        (sum, product) => sum + product.total,
+        0
       );
 
       // Update the enquiry document
       const updatedEnquiry = await Enquirymodel.findOneAndUpdate(
-          { _id: id },
-          {
-              $set: { GrandTotal: newGrandTotal },
-              $push: { products: newProduct }, // Add the new product to the array
-          },
-          { new: true } // Return the updated document
+        { _id: id },
+        {
+          $set: { GrandTotal: newGrandTotal },
+          $push: { products: newProduct }, // Add the new product to the array
+        },
+        { new: true } // Return the updated document
       );
 
       return res.status(200).json({
-          success: "New product added successfully and GrandTotal updated",
-          data: updatedEnquiry,
+        success: "New product added successfully and GrandTotal updated",
+        data: updatedEnquiry,
       });
 
-  } catch (error) {
+    } catch (error) {
       console.error("Error adding product to enquiry:", error.message);
       return res.status(500).json({ error: "Failed to add product to enquiry" });
+    }
   }
-}
 
 
 

@@ -93,7 +93,7 @@ const ProductManagementSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
   },
-},{ timestamps: true });
+}, { timestamps: true });
 
 const ProductManagementModel = mongoose.model(
   "Product",

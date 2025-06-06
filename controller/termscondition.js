@@ -3,7 +3,7 @@ const TermsandConditionModel = require("../model/termscondition");
 class TermsandCondition {
   async createTermsandCondition(req, res) {
     let { category, points, desc, header } = req.body;
-     console.log(category,points,">>>>>>>>>")
+    console.log(category, points, ">>>>>>>>>")
     let add = new TermsandConditionModel({
       category,
       points,

@@ -4,7 +4,7 @@ const mongoose = require("mongoose");
 const SlotSchema = new mongoose.Schema({
   slotName: {
     type: String,
-    required: true, 
+    required: true,
   },
   quoteDate: {
     type: String,
@@ -15,7 +15,7 @@ const SlotSchema = new mongoose.Schema({
     require: true,
   },
   Products: {
-    type: Array, 
+    type: Array,
   },
 });
 const QuotationSchema = new mongoose.Schema({
@@ -79,7 +79,7 @@ const QuotationSchema = new mongoose.Schema({
     enum: ["pending", "send", "cancelled"],
     default: "pending",
   },
-  
+
   termsandCondition: {
     type: Array,
   },
@@ -89,10 +89,10 @@ const QuotationSchema = new mongoose.Schema({
   address: {
     type: String,
   },
-  labourecharge: { type: Number, default: 0 }, 
+  labourecharge: { type: Number, default: 0 },
   transportcharge: { type: Number, default: 0 },
-  placeaddress:{
-    type:String
+  placeaddress: {
+    type: String
   },
   slots: {
     type: [SlotSchema], // Array of slots

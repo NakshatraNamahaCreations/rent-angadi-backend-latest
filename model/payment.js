@@ -29,7 +29,7 @@ const PaymentSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: ["Pending", "Completed"],
-    
+
     },
   },
   { timestamps: true }

@@ -11,49 +11,49 @@ class Clients {
       // password,
       address,
       activeStatus,
-      executives, 
+      executives,
     } = req.body;
 
-    console.log( clientName,
+    console.log(clientName,
       email,
       phoneNumber,
       // password,
       address,
       activeStatus,
       executives)
-  
+
     try {
       // Check if client with the same phone number already exists
       const existingClient = await Clientmodel.findOne({ phoneNumber });
       if (existingClient) {
         return res.status(401).json({ error: "This number already exists!" });
       }
-  
-   
+
+
       let parsedExecutives = [];
       if (executives) {
         parsedExecutives = Array.isArray(executives)
           ? executives
           : JSON.parse(executives);
       }
-  
+
       // Create a new client
       const newClient = new Clientmodel({
         clientName,
         email,
         // password,
-      phoneNumber,
+        phoneNumber,
         address,
         activeStatus,
         executives: parsedExecutives, // Store executives array
       });
-  
+
       // Save the client to the database
       const savedClient = await newClient.save();
-  
+
       // Invalidate cache after adding a new client (if caching is used)
       if (cache) cache.del("allclients");
-  
+
       return res.json({ success: "Client added successfully", client: savedClient });
     } catch (error) {
       console.error("Error creating client:", error);
@@ -62,7 +62,7 @@ class Clients {
   }
   async clientlogin(req, res) {
     let { companyName, phoneNumber } = req.body;
-  
+
     try {
       // Validate input
       if (!companyName || !phoneNumber) {
@@ -70,40 +70,40 @@ class Clients {
           error: "Please enter company name, executive name, and executive phone number",
         });
       }
-  
+
       // Find the client by company name
       const client = await Clientmodel.findOne({ clientName: companyName });
-  
+
       if (!client) {
         return res.status(404).json({
           error: "Client not found. Please check your details",
         });
       }
-  
+
       // Check if the executive exists in the client's executive list
       const executive = client.executives.find(
-        (exec) =>  exec.phoneNumber === phoneNumber
+        (exec) => exec.phoneNumber === phoneNumber
       );
-  
+
       if (!executive) {
         return res.status(404).json({
           error: "Executive not found. Please check your details",
         });
       }
-  
+
       // Update the active status for the client
       await Clientmodel.findOneAndUpdate(
         { clientName: companyName },
         { activeStatus: "Online" },
-        { new: true } 
+        { new: true }
       );
-  
+
       // Update the active status for the specific executive
       await Clientmodel.updateOne(
         { clientName: companyName, "executives._id": executive._id },
         { $set: { "executives.$.activeStatus": "Online" } }
       );
-  
+
       return res.status(200).json({
         success: "Login successful",
         client: {
@@ -119,16 +119,16 @@ class Clients {
             activeStatus: "Online",
           },
         },
-       
+
       });
     } catch (error) {
       console.error("Error during client login:", error);
       return res.status(500).json({ error: "Internal server error" });
     }
   }
-  
-  
-  
+
+
+
   async editClients(req, res) {
     const ClientId = req.params.id;
     const {
@@ -138,36 +138,36 @@ class Clients {
       address,
       executives, // Updated to include executives
     } = req.body;
-  
+
     try {
       // Find the client by ID
       const findClients = await Clientmodel.findOne({ _id: ClientId });
       if (!findClients) {
         return res.status(404).json({ error: "No data found" });
       }
-  
+
       // Update client fields conditionally
       findClients.clientName = clientName || findClients.clientName;
       findClients.email = email || findClients.email;
       findClients.phoneNumber = phoneNumber || findClients.phoneNumber;
 
       findClients.address = address || findClients.address;
-  
+
       // Parse and update executives if provided
       if (executives) {
         const parsedExecutives = Array.isArray(executives)
           ? executives
           : JSON.parse(executives);
-  
+
         findClients.executives = parsedExecutives;
       }
-  
+
       // Save updated client
       const updatedData = await findClients.save();
-  
+
       // Invalidate cache after updating the client
       if (cache) cache.del("allclients");
-  
+
       return res.json({ success: "Client updated successfully", data: updatedData });
     } catch (error) {
       console.error("Error updating client:", error);
