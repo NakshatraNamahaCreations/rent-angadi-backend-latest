@@ -1,0 +1,258 @@
+const InventoryModel = require("../model/inventory");
+const ProductManagementModel = require("../model/product");
+
+class Inventory {
+  async updateInventory(req, res) {
+    const { startDate, endDate, products } = req.body;
+
+    console.log("products", products);
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    try {
+      for (const product of products) {
+        const { ProductId, qty } = product;
+
+        const pData = await ProductManagementModel.findById(ProductId);
+
+        if (!pData) {
+          return res
+            .status(404)
+            .json({ error: `Product with ID ${ProductId} not found` });
+        }
+
+        for (
+          let dt = new Date(start);
+          dt <= end;
+          dt.setDate(dt.getDate() + 1)
+        ) {
+          const dateKey = new Date(dt);
+
+          const existingEntry = await InventoryModel.findOne({
+            productId: ProductId,
+            startDate: dateKey,
+          });
+
+          if (existingEntry) {
+            existingEntry.qty += qty;
+            existingEntry.remainingQty += qty;
+            await existingEntry.save();
+          } else {
+            const remainingQty = pData.ProductStock - qty;
+
+            const newOrder = new InventoryModel({
+              productId: ProductId,
+              startDate: dateKey,
+              endDate: dateKey,
+              qty: qty,
+              remainingQty: remainingQty >= 0 ? remainingQty : 0,
+            });
+
+            await newOrder.save();
+          }
+        }
+      }
+
+      res.json({
+        success: "Inventory updated successfully for each day in range",
+      });
+    } catch (error) {
+      console.error("Error updating inventory:", error);
+      res.status(500).json({ error: "Failed to update inventory" });
+    }
+  }
+
+  async getInventoryByDate(req, res) {
+    const { date } = req.query;
+
+    try {
+      const inventory = await InventoryModel.find({ date: new Date(date) });
+
+      const products = await ProductManagementModel.find().lean();
+
+      const stock = products.map((product) => {
+        const inventoryEntry = inventory.find(
+          (item) => item.productId.toString() === product._id.toString()
+        );
+
+        return {
+          productId: product._id,
+          productName: product.ProductName,
+          totalStock: product.ProductStock,
+          availableStock: inventoryEntry
+            ? inventoryEntry.availableQty
+            : product.ProductStock,
+        };
+      });
+
+      res.status(200).json({ stock });
+    } catch (error) {
+      console.error("Error fetching inventory:", error);
+      res
+        .status(500)
+        .json({ message: "Failed to fetch inventory.", error: error.message });
+    }
+  }
+
+  async getInventoryByDateSlotProducts(req, res) {
+    console.log(`inside  getInventoryByDateSlotProducts`);
+    const { startDate, endDate, slot, products } = req.query;
+
+    try {
+      if (!startDate || !endDate || !slot || !products) {
+        return res.status(400).json({
+          message: "Start date, end date, slot, and product IDs are required.",
+        });
+      }
+
+      const productIds = Array.isArray(products)
+        ? products
+        : products.split(",");
+
+      const inventory = await InventoryModel.find({
+        startdate: { $lte: endDate.trim() },
+        enddate: { $gte: startDate.trim() },
+        slot: slot.trim(),
+        productId: { $in: productIds },
+      });
+
+      const productsData = await ProductManagementModel.find({
+        _id: { $in: productIds },
+      }).lean();
+
+      const stock = productsData.map((product) => {
+        const inventoryEntries = inventory.filter(
+          (item) => item.productId.toString() === product._id.toString()
+        );
+
+        const totalReserved = inventoryEntries.reduce(
+          (sum, item) => sum + item.reservedQty,
+          0
+        );
+
+        const minAvailableQty =
+          inventoryEntries.length > 0
+            ? Math.min(...inventoryEntries.map((item) => item.availableQty))
+            : product.ProductStock;
+        return {
+          productId: product._id,
+          productName: product.ProductName,
+          totalStock: product.ProductStock,
+          reservedStock: totalReserved,
+          availableStock: Math.max(minAvailableQty, 0),
+          slot: slot,
+          price: product.ProductPrice || 0,
+          StockAvailable: product.StockAvailable,
+        };
+      });
+
+      res.status(200).json({ stock });
+    } catch (error) {
+      console.error("Error fetching inventory:", error);
+      res
+        .status(500)
+        .json({ message: "Failed to fetch inventory.", error: error.message });
+    }
+  }
+
+  // async getinventorydataprroduct(req, res) {
+  //   const { slot, startdate, enddate } = req.body;
+  //   console.log(slot, startdate, enddate, "Request Data");
+
+  //   try {
+  //     const inventory = await InventoryModel.find({
+  //       slot: slot,
+  //       startdate: startdate,
+  //       enddate: enddate,
+  //     }).populate("productId", "ProductName");
+
+  //     if (!inventory) {
+  //       return res.status(404).json({ error: "No inventory found" });
+  //     }
+
+  //     res.status(200).json({ inventory });
+  //   } catch (error) {
+  //     console.error("Error fetching inventory by slot/date:", error);
+  //     res.status(500).json({ error: "Internal server error" });
+  //   }
+  // }
+
+  // async getinventorydataprroduct(req, res) {
+  //   const { slot, startdate, enddate } = req.body;
+  //   console.log(slot, startdate, enddate, "Request Data");
+
+  //   try {
+  //     const allProducts = await ProductManagementModel.find({});
+  //     const inventoryList = await InventoryModel.find({
+  //       slot,
+  //       startdate,
+  //       enddate,
+  //     });
+
+  //     const inventoryMap = {};
+  //     inventoryList.forEach((inv) => {
+  //       inventoryMap[inv.productId] = {
+  //         reservedQty: inv.reservedQty,
+  //         availableQty: inv.availableQty,
+  //       };
+  //     });
+
+  //     const mergedData = allProducts.map((product) => {
+  //       const inventoryData = inventoryMap[product._id.toString()];
+  //       return {
+  //         ...product._doc,
+  //         reservedQty: inventoryData?.reservedQty || 0,
+  //         availableQty: inventoryData?.availableQty || 0,
+  //       };
+  //     });
+
+  //     return res.status(200).json({ inventory: mergedData });
+  //   } catch (error) {
+  //     console.error("Error merging inventory with products:", error);
+  //     res.status(500).json({ error: "Internal Server Error" });
+  //   }
+  // }
+
+  async getinventorydataprroduct(req, res) {
+    const { slot, startdate, enddate } = req.body;
+    console.log(slot, startdate, enddate, "Request Data");
+
+    try {
+      const allProducts = await ProductManagementModel.find({});
+      const inventoryList = await InventoryModel.find({
+        slot,
+        startdate,
+        enddate,
+      });
+
+      const inventoryMap = {};
+      inventoryList.forEach((inv) => {
+        inventoryMap[inv.productId] = {
+          reservedQty: inv.reservedQty,
+          availableQty: inv.availableQty,
+        };
+      });
+
+      const mergedData = allProducts.map((product) => {
+        const productIdStr = product._id.toString();
+        const inventoryData = inventoryMap[productIdStr];
+
+        return {
+          ...product._doc,
+          reservedQty: inventoryData?.reservedQty || 0,
+          availableQty:
+            (inventoryData?.availableQty ?? product.StockAvailable) || 0,
+        };
+      });
+
+      return res.status(200).json({ inventory: mergedData });
+    } catch (error) {
+      console.error("Error merging inventory with products:", error);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  }
+}
+
+const inventoryController = new Inventory();
+module.exports = inventoryController;
