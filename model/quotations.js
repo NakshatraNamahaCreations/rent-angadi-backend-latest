@@ -2,10 +2,10 @@ const mongoose = require("mongoose");
 
 
 const SlotSchema = new mongoose.Schema({
-  slotName: {
-    type: String,
-    required: true,
-  },
+  // slotName: {
+  //   type: String,
+  //   required: true,
+  // },
   quoteDate: {
     type: String,
     require: true,
@@ -31,10 +31,10 @@ const QuotationSchema = new mongoose.Schema({
     type: String,
     require: true,
   },
-  quoteTime: {
-    type: String,
-    require: true,
-  },
+  // quoteTime: {
+  //   type: String,
+  //   require: true,
+  // },
   clientId: {
     type: String,
     require: true,

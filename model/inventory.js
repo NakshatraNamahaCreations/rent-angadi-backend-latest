@@ -17,10 +17,10 @@ const InventorySchema = new mongoose.Schema({
   price: {
     type: Number,
   },
-  slot: {
-    type: String,
-    required: true,
-  },
+  // slot: {
+  //   type: String,
+  //   required: true,
+  // },
   reservedQty: {
     type: Number,
     default: 0,
@@ -30,6 +30,18 @@ const InventorySchema = new mongoose.Schema({
     required: true,
   },
 });
+
+// InventorySchema.virtual('startDateObj').get(function () {
+//   const [day, month, year] = this.startdate.split('-');
+//   return new Date(`${year}-${month}-${day}`);
+// });
+
+// // Virtual for endDate (converted to Date object)
+// InventorySchema.virtual('endDateObj').get(function () {
+//   const [day, month, year] = this.enddate.split('-');
+//   return new Date(`${year}-${month}-${day}`);
+// });
+
 
 const Inventory = mongoose.model("Inventory", InventorySchema);
 module.exports = Inventory;

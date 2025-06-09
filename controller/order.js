@@ -2,6 +2,7 @@ const ordermodel = require("../model/order");
 const ProductManagementModel = require("../model/product");
 const InventoryModel = require("../model/inventory");
 const mongoose = require("mongoose");
+const { parseDate } = require("../utils/dateString");
 
 class order {
   async postaddorder(req, res) {
@@ -25,18 +26,36 @@ class order {
     } = req.body;
 
     try {
+      // const startDate = '09-06-2025'
+      // const endDate = '12-06-2025'
+
+      // const start = parseDate(startDate.trim());
+      // const end = parseDate(endDate.trim());
+      // const productId = "67cfe7e5998cc252e7dfc148"
+      // let inventory = await InventoryModel.find({
+      //   productId: productId,
+      //   startdate: start,
+      //   enddate: end
+      // });
+      // console.log(`Hello `);
+      // const k = await InventoryModel.find({ productId: '67cfe7e5998cc252e7dfc148' });
+      // console.log(`k: `, k);
+
+
       // Iterate through slots
       for (const slot of slots) {
-        const { products, quoteDate, endDate, slotName } = slot;
+        const { products, quoteDate, endDate } = slot;
 
         // Convert quoteDate and endDate to Date objects
-        const startDate = quoteDate;
-        const finalDate = endDate;
+        const start = parseDate(quoteDate.trim());
+        const end = parseDate(endDate.trim());
 
         // Validate date range
-        // if (isNaN(startDate.getTime()) || isNaN(finalDate.getTime())) {
-        //   return res.status(400).json({ message: "Invalid quoteDate or endDate provided." });
-        // }
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+          return res.status(400).json({
+            message: "Invalid start date or end date provided."
+          });
+        }
 
         for (const product of products) {
           const { productId, quantity, productName } = product;
@@ -48,50 +67,63 @@ class order {
             });
           }
 
-          // Loop through each day in the slot date range
-          for (
-            let date = new Date(startDate);
-            date <= finalDate;
-            date.setDate(date.getDate() + 1)
-          ) {
-            const formattedDate = new Date(date.toISOString().split("T")[0]);
+          const inventory = await InventoryModel.find({ productId: productId });
 
-            // Fetch inventory for the specific product and date
-            let inventory = await InventoryModel.findOne({
-              productId,
-              date: formattedDate,
+          // Step 2: Check for overlapping date ranges
+          const overlappingInventory = inventory.filter(item => {
+            // Convert startdate and enddate from strings (e.g., 'DD-MM-YYYY') to Date objects
+            const inventoryStartDate = parseDate(item.startdate);
+            const inventoryEndDate = parseDate(item.enddate);
+
+            // Check if there's an overlap
+            return inventoryStartDate <= end && inventoryEndDate >= start;
+          });
+
+          // Calculate total reserved quantity
+          const totalReserved = overlappingInventory.reduce(
+            (sum, item) => sum + item.reservedQty,
+            0
+          );
+
+          const existingInventory = inventory.find(item =>
+            item.productId === productId &&
+            item.startdate === quoteDate &&
+            item.enddate === endDate
+          );
+
+          console.log("existingInventory", existingInventory);
+          const findProd = await ProductManagementModel.findById(productId)
+          console.log("findProd", findProd);
+          // Fetch product stock if inventory entry does not exist
+          const globalStock = existingInventory
+            ? existingInventory.availableQty
+            : (await ProductManagementModel.findById(productId)).ProductStock;
+
+          console.log(`globalstock: `, globalStock);
+
+          // Check stock availability
+          if (globalStock < quantity) {
+            return res.status(400).json({
+              message: `Insufficient stock for "${productName}" on ${quoteDate}.`,
             });
+          }
 
-            // Fetch product stock if inventory entry does not exist
-            const globalStock = inventory
-              ? inventory.availableQty
-              : (await ProductManagementModel.findById(productId)).ProductStock;
-
-            // Check stock availability
-            if (globalStock < quantity) {
-              return res.status(400).json({
-                message: `Insufficient stock for "${productName}" on ${formattedDate.toISOString().split("T")[0]
-                  }.`,
-              });
-            }
-
-            // Update or create inventory entry
-            if (inventory) {
-              console.log(`post order inventory: `, inventory);
-              inventory.reservedQty += quantity;
-              inventory.availableQty -= quantity;
-            } else {
-              inventory = new InventoryModel({
-                productId,
-                date: formattedDate,
-                reservedQty: quantity,
-                availableQty: globalStock - quantity,
-              });
-            }
-
-            // Save inventory updates
+          // Update or create inventory entry
+          if (existingInventory) {
+            existingInventory.reservedQty += quantity;
+            existingInventory.availableQty -= quantity;
+            await existingInventory.save();
+          } else {
+            const inventory = new InventoryModel({
+              productId,
+              startdate: quoteDate,
+              enddate: endDate,
+              reservedQty: quantity,
+              availableQty: globalStock - quantity,
+            });
             await inventory.save();
           }
+
 
           // Update global product stock
           // const productData = await ProductManagementModel.findById(productId);
@@ -763,7 +795,7 @@ class order {
 
       // Update inventory for each slot
       for (const slot of slots) {
-        const { products, quoteDate, endDate, slotName } = slot;
+        const { products, quoteDate, endDate } = slot;
 
         // Loop through each product in the slot
         for (const product of products) {
@@ -772,22 +804,25 @@ class order {
           // Find and update the inventory entry
           const inventory = await InventoryModel.findOne({
             productId,
-            slot: slotName,
             startdate: quoteDate,
             enddate: endDate,
           });
 
+          console.log(`product: `, product);
+          console.log(`quoteDate: `, quoteDate);
+          console.log(`endDate: `, endDate);
+
           if (inventory) {
             // Release the reserved quantity back to available
-            inventory.availableQty += inventory.reservedQty;
-            inventory.reservedQty = 0;
+            inventory.availableQty += quantity;
+            inventory.reservedQty -= quantity;
             await inventory.save();
 
-            const productData = await ProductManagementModel.findById(productId);
-            if (productData) {
-              productData.StockAvailable += quantity;
-              await productData.save();
-            }
+            // const productData = await ProductManagementModel.findById(productId);
+            // if (productData) {
+            //   productData.StockAvailable += quantity;
+            //   await productData.save();
+            // }
           }
         }
       }

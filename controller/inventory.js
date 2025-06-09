@@ -1,5 +1,6 @@
 const InventoryModel = require("../model/inventory");
 const ProductManagementModel = require("../model/product");
+const { parseDate } = require("../utils/dateString");
 
 class Inventory {
   async updateInventory(req, res) {
@@ -97,12 +98,12 @@ class Inventory {
 
   async getInventoryByDateSlotProducts(req, res) {
     console.log(`inside  getInventoryByDateSlotProducts`);
-    const { startDate, endDate, slot, products } = req.query;
+    const { startDate, endDate, products } = req.query;
 
     try {
-      if (!startDate || !endDate || !slot || !products) {
+      if (!startDate || !endDate || !products) {
         return res.status(400).json({
-          message: "Start date, end date, slot, and product IDs are required.",
+          message: "Start date, end date, and product IDs are required.",
         });
       }
 
@@ -110,19 +111,36 @@ class Inventory {
         ? products
         : products.split(",");
 
+      const start = parseDate(startDate.trim());
+      const end = parseDate(endDate.trim());
+      // Step 1: Fetch all inventory records for the given productId(s)
       const inventory = await InventoryModel.find({
-        startdate: { $lte: endDate.trim() },
-        enddate: { $gte: startDate.trim() },
-        slot: slot.trim(),
-        productId: { $in: productIds },
+        productId: { $in: productIds }
       });
+
+      // Step 2: Check for overlapping date ranges
+      const overlappingInventory = inventory.filter(item => {
+        // Convert startdate and enddate from strings (e.g., 'DD-MM-YYYY') to Date objects
+        const inventoryStartDate = parseDate(item.startdate);
+        const inventoryEndDate = parseDate(item.enddate);
+
+        // Check if there's an overlap
+        return inventoryStartDate <= end && inventoryEndDate >= start;
+      });
+
+      // const inventory = await InventoryModel.find({
+      //   startdate: { $lte: endDate },
+      //   enddate: { $gte: startDate },
+      //   // slot: slot.trim(),
+      //   productId: { $in: productIds },
+      // });
 
       const productsData = await ProductManagementModel.find({
         _id: { $in: productIds },
       }).lean();
 
       const stock = productsData.map((product) => {
-        const inventoryEntries = inventory.filter(
+        const inventoryEntries = overlappingInventory.filter(
           (item) => item.productId.toString() === product._id.toString()
         );
 
@@ -141,7 +159,7 @@ class Inventory {
           totalStock: product.ProductStock,
           reservedStock: totalReserved,
           availableStock: Math.max(minAvailableQty, 0),
-          slot: slot,
+          // slot: slot,
           price: product.ProductPrice || 0,
           StockAvailable: product.StockAvailable,
         };

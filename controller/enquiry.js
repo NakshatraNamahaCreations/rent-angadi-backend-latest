@@ -48,7 +48,7 @@ class Enquiry {
         address,
         category,
         enquiryDate,
-        enquiryTime,
+        // enquiryTime,
         termsandCondition,
         GrandTotal,
         adjustments,

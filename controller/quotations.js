@@ -5,6 +5,7 @@ const ProductModel = require("../model/product");
 const InventoryModel = require("../model/inventory");
 const cache = new NodeCache({ stdTTL: 100, checkperiod: 120 });
 const moment = require("moment");
+const { parseDate } = require("../utils/dateString");
 
 class Quotations {
   // async createQuotations(req, res) {
@@ -223,25 +224,30 @@ class Quotations {
 
       // Update inventory for slots and products
       for (const slot of slots) {
-        const { Products, slotName } = slot;
+        const { Products } = slot;
 
         for (const product of Products) {
           const { productId, quantity, StockAvailable } = product;
           console.log(productId, quantity, StockAvailable, "HHH")
 
-          // Fetch overlapping reservations for the requested date range and slot
-          const overlappingReservations = await InventoryModel.find({
-            productId,
-            $or: [
-              {
-                startdate: { $lte: endDate },
-                enddate: { $gte: quoteDate },
-              },
-            ],
-            slot: slotName,
-          }).session(session);
+          const start = parseDate(quoteDate.trim());
+          const end = parseDate(endDate.trim());
+          // Step 1: Fetch all inventory records for the given productId(s)
+          const inventory = await InventoryModel.find({
+            productId
+          });
+    
+          // Step 2: Check for overlapping date ranges
+          const overlappingInventory = inventory.filter(item => {
+            // Convert startdate and enddate from strings (e.g., 'DD-MM-YYYY') to Date objects
+            const inventoryStartDate = parseDate(item.startdate);
+            const inventoryEndDate = parseDate(item.enddate);
+    
+            // Check if there's an overlap
+            return inventoryStartDate <= end && inventoryEndDate >= start;
+          });
 
-          let totalReservedQty = overlappingReservations.reduce(
+          let totalReservedQty = overlappingInventory.reduce(
             (sum, reservation) => sum + reservation.reservedQty,
             0
           );
@@ -260,40 +266,40 @@ class Quotations {
             );
           }
 
-          // Update or create inventory for the current slot
-          const existingInventory = await InventoryModel.findOne({
-            productId,
-            startdate: quoteDate,
-            enddate: endDate,
-            slot: slotName,
-          }).session(session);
+          // // Update or create inventory for the current slot
+          // const existingInventory = await InventoryModel.findOne({
+          //   productId,
+          //   startdate: quoteDate,
+          //   enddate: endDate,
+          //   // slot: slotName,
+          // }).session(session);
 
-          if (existingInventory) {
-            existingInventory.reservedQty += quantity;
-            existingInventory.availableQty = availableStock - quantity;
-            await existingInventory.save({ session });
-          } else {
-            const newInventory = new InventoryModel({
-              productId,
-              startdate: quoteDate,
-              enddate: endDate,
-              slot: slotName,
-              reservedQty: quantity,
-              availableQty: availableStock - quantity,
-            });
+          // if (existingInventory) {
+          //   existingInventory.reservedQty += quantity;
+          //   existingInventory.availableQty = availableStock - quantity;
+          //   await existingInventory.save({ session });
+          // } else {
+          //   const newInventory = new InventoryModel({
+          //     productId,
+          //     startdate: quoteDate,
+          //     enddate: endDate,
+          //     // slot: slotName,
+          //     reservedQty: quantity,
+          //     availableQty: availableStock - quantity,
+          //   });
 
-            await newInventory.save({ session });
-          }
+          //   await newInventory.save({ session });
+          // }
           // Now update the product's StockAvailable
-          const getProduct = await ProductModel.findById(productId).session(session);
-          console.log(`focus product: `, getProduct);
+          // const getProduct = await ProductModel.findById(productId).session(session);
+          // console.log(`focus product: `, getProduct);
 
-          if (getProduct) {
-            getProduct.StockAvailable -= quantity;
-            await getProduct.save({ session });
-          }
-          const updatedProduct = await ProductModel.findById(productId).session(session)
-          console.log(`after prod updation: `, updatedProduct);
+          // if (getProduct) {
+          //   getProduct.StockAvailable -= quantity;
+          //   await getProduct.save({ session });
+          // }
+          // const updatedProduct = await ProductModel.findById(productId).session(session)
+          // console.log(`after prod updation: `, updatedProduct);
         }
       }
 
@@ -1834,11 +1840,11 @@ class Quotations {
           await record.save({ session });
         }
 
-        const productData = await ProductModel.findById(product.productId);
-        if (productData) {
-          productData.StockAvailable += product.quantity;
-          await productData.save({ session });
-        }
+        // const productData = await ProductModel.findById(product.productId);
+        // if (productData) {
+        //   productData.StockAvailable += product.quantity;
+        //   await productData.save({ session });
+        // }
       }
 
       // Update quotation status

@@ -11,10 +11,10 @@ const EnquirySchema = new mongoose.Schema(
       type: String,
       require: true,
     },
-    enquiryTime: {
-      type: String,
-      require: true,
-    },
+    // enquiryTime: {
+    //   type: String,
+    //   require: true,
+    // },
     clientId: {
       type: String,
       require: true,

@@ -2,10 +2,10 @@ const mongoose = require("mongoose");
 
 
 const SlotSchema = new mongoose.Schema({
-  slotName: {
-    type: String,
-    required: true,
-  },
+  // slotName: {
+  //   type: String,
+  //   required: true,
+  // },
   quoteDate: {
     type: String,
     required: true,
