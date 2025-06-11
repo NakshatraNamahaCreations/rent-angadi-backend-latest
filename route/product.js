@@ -30,7 +30,7 @@ router.post(
   ProductManagemntController.editProductManagement
 );
 
-router.post(
+router.delete(
   "/deleteProducts/:id",
   ProductManagemntController.postdeleteProductManagement
 );

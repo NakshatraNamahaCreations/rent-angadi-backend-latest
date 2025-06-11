@@ -12,7 +12,7 @@ router.get(
   "/allTermsandCondition",
   TermsandConditionController.allTermsandCondition
 );
-router.post(
+router.delete(
   "/deleteTC/:id",
   TermsandConditionController.postdeletetermsandcondition
 );

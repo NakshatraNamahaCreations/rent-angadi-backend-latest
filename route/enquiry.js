@@ -8,6 +8,7 @@ router.get(
   EnquiryController.getTotalAndTodayEnquiryCount
 );
 router.get("/getallEnquiry", EnquiryController.allEnquiry);
+router.get("/enquiry-details/:id", EnquiryController.getEnquiryById);
 router.post("/updatefollowup/:id", EnquiryController.updateenquiryfollowup);
 router.put("/updatestatus/:id", EnquiryController.updateEnquiry);
 router.post("/deleteEnquiry/:id", EnquiryController.postdeleteEnquiry);

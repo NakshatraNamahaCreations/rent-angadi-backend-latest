@@ -23,6 +23,11 @@ const QuotationSchema = new mongoose.Schema({
     type: String,
     require: true,
   },
+  enquiryId: {
+    type: Number,
+    unique: true,
+    required: true
+  },
   quoteDate: {
     type: String,
     require: true,
@@ -31,10 +36,10 @@ const QuotationSchema = new mongoose.Schema({
     type: String,
     require: true,
   },
-  // quoteTime: {
-  //   type: String,
-  //   require: true,
-  // },
+  quoteTime: {
+    type: String,
+    require: true,
+  },
   clientId: {
     type: String,
     require: true,

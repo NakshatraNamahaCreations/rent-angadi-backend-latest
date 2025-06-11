@@ -21,7 +21,7 @@ router.post(
 );
 router.get("/getappsubcat", appsubcatcontroller.getappsubcat);
 router.post("/postappsubcat", appsubcatcontroller.postappsubcat);
-router.post("/deleteappsubcat/:id", appsubcatcontroller.deleteappsubcat);
+router.delete("/deleteappsubcat/:id", appsubcatcontroller.deleteappsubcat);
 router.put(
   "/editappsubcat/:id",
   upload.single("subcatimg"),

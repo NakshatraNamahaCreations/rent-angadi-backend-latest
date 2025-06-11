@@ -21,6 +21,6 @@ router.post(
   bannerController.postaddbanner
 );
 router.get("/getallbanner", bannerController.getallbanner);
-router.post("/deletebanner/:id", bannerController.postdeletebanner);
+router.delete("/deletebanner/:id", bannerController.postdeletebanner);
 
 module.exports = router;

@@ -2,6 +2,8 @@ const mongoose = require("mongoose");
 const Enquirymodel = require("../model/enquiry");
 const Counter = require("../model/getNextSequence");
 const Inventory = require("../model/inventory");
+const Clientmodel = require("../model/clients");
+const Quotationmodel = require("../model/quotations");
 
 class Enquiry {
   async createEnquiry(req, res) {
@@ -48,7 +50,7 @@ class Enquiry {
         address,
         category,
         enquiryDate,
-        // enquiryTime,
+        enquiryTime,
         termsandCondition,
         GrandTotal,
         adjustments,
@@ -174,6 +176,51 @@ class Enquiry {
     }
   }
 
+  async getEnquiryById(req, res) {
+    const { id } = req.params;
+    try {
+      const enquiryData = await Enquirymodel.findOne({ _id: id });
+      console.log("enquirydata: ", enquiryData)
+
+      if (enquiryData.clientId) {
+        // Fetch client info using clientId from enquiryData
+        const clientDetails = await Clientmodel.findById(enquiryData.clientId);
+        // console.log("clientData: ", clientData)
+
+        // Add client info to response
+        const enrichedResponse = {
+          ...enquiryData.toObject(),  // convert Mongoose doc to plain object
+          clientDetails   // add full client object or select fields
+        };
+        console.log("enquiry client enrichedResponse: ", enrichedResponse)
+
+        if (enquiryData.status === "sent") {
+          const quotationData = await Quotationmodel.findOne({ enquiryId: enquiryData.enquiryId });
+
+          const quotationEnrichedResponse = {
+            ...enquiryData.toObject(),  // convert Mongoose doc to plain object
+            clientDetails,   // add full client object or select fields
+            quotationData
+          };
+          console.log("enquiry quotation enriched: ", quotationEnrichedResponse)
+          return res.status(200).json({ enrichedResponse: quotationEnrichedResponse });
+        }
+
+        if (enquiryData && clientDetails) {
+          return res.status(200).json({ enrichedResponse });
+        }
+      }
+
+
+      if (enquiryData) {
+        return res.status(200).json({ enrichedResponse: enquiryData });
+      }
+    } catch (error) {
+      console.error("Something went wrong", error);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  }
+
   async postdeleteEnquiry(req, res) {
     let id = req.params.id;
     try {
@@ -226,12 +273,12 @@ class Enquiry {
 
   async addProductsToEnquiry(req, res) {
     const { id, products, adjustment = 0 } = req.body;
-    console.log(`req.body: `, products);
-    console.log(req.body, "Request Body");
+    // console.log("Request Body: ", req.body);
+    console.log("products: ", products);
 
     try {
       // Find the enquiry by clientId
-      const enquiry = await Enquirymodel.findOne({ enquiryId: id });
+      const enquiry = await Enquirymodel.findOne({ _id: id });
 
       if (!enquiry) {
         return res.status(404).json({ error: "Enquiry not found" });
@@ -244,15 +291,38 @@ class Enquiry {
           .json({ error: "Products must be a non-empty array" });
       }
 
-      // Append new products to the existing products array
-      enquiry.products = [...(enquiry.products || []), ...products];
+      // Merge or add products
+      // Merge or add products
+      products.forEach((newProduct) => {
+        const existingIndex = enquiry.products.findIndex(
+          (p) => String(p.productId) === String(newProduct.productId)
+        );
 
-      // Calculate the new grand total
+        if (existingIndex !== -1) {
+          const existing = enquiry.products[existingIndex];
+          existing.qty += newProduct.qty;
+          existing.total = existing.qty * existing.price;
+        } else {
+          enquiry.products.push(newProduct);
+        }
+      });
+
+
+      // Recalculate grand total
       const productTotal = enquiry.products.reduce(
-        (sum, product) => sum + product.price * product.quantity,
+        (sum, product) => sum + product.price * product.qty,
         0
       );
-      const updatedGrandTotal = Math.max(0, productTotal - adjustment);
+
+      // // Append new products to the existing products array
+      // enquiry.products = [...(enquiry.products || []), ...products];
+
+      // // Calculate the new grand total
+      // const productTotal = enquiry.products.reduce(
+      //   (sum, product) => sum + product.price * product.quantity,
+      //   0
+      // );
+      const updatedGrandTotal = Math.max(0, productTotal - adjustment || 0);
 
       // Update enquiry fields
       enquiry.grandTotal = updatedGrandTotal;
@@ -260,7 +330,7 @@ class Enquiry {
 
       // Save the updated enquiry
       const updatedEnquiry = await enquiry.save();
-      console.log(updatedEnquiry, "Updated Enquiry");
+      console.log("Updated Enquiry: ", updatedEnquiry?.products.map((p) => p.name));
 
       return res.status(200).json({
         success: "Products added successfully",
@@ -332,7 +402,6 @@ class Enquiry {
     }
   }
 
-
   async deleteProductFromEnquiry(req, res) {
     const { id } = req.params;
     const { productId } = req.body;
@@ -383,7 +452,6 @@ class Enquiry {
         .json({ error: "Failed to remove product from enquiry" });
     }
   }
-
 
   async addProductToEnquiry(req, res) {
     const { id } = req.params;

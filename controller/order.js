@@ -3,10 +3,12 @@ const ProductManagementModel = require("../model/product");
 const InventoryModel = require("../model/inventory");
 const mongoose = require("mongoose");
 const { parseDate } = require("../utils/dateString");
+const Order = require("../model/order");
 
 class order {
   async postaddorder(req, res) {
     const {
+      quoteId,
       slots,
       ClientId,
       clientName,
@@ -67,7 +69,7 @@ class order {
             });
           }
 
-          const inventory = await InventoryModel.find({ productId: productId });
+          const inventory = await InventoryModel.find({ productId });
 
           // Step 2: Check for overlapping date ranges
           const overlappingInventory = inventory.filter(item => {
@@ -138,6 +140,7 @@ class order {
 
       // Create the order after inventory updates
       const newOrder = new ordermodel({
+        quoteId,
         ClientId,
         clientName,
         clientNo,
@@ -161,6 +164,121 @@ class order {
       res.status(201).json({
         message: "Order created successfully and inventory updated.",
         order: savedOrder,
+      });
+    } catch (error) {
+      console.error("Error creating order:", error);
+      res.status(500).json({
+        message: "Failed to create order and update inventory.",
+        error: error.message,
+      });
+    }
+  }
+
+  async updateOrder(req, res) {
+    const {
+      quoteId,
+      orderId,
+      slots,
+      ClientId,
+      clientName,
+      clientNo,
+      executivename,
+      Address,
+      GrandTotal,
+      paymentStatus,
+      orderStatus,
+      labourecharge,
+      transportcharge,
+      GST,
+      discount,
+      placeaddress,
+      adjustments,
+      products,
+    } = req.body;
+
+    try {
+      // Iterate through slots
+      for (const slot of slots) {
+        const { products, quoteDate, endDate } = slot;
+
+        // Convert quoteDate and endDate to Date objects
+        const start = parseDate(quoteDate.trim());
+        const end = parseDate(endDate.trim());
+
+        // Validate date range
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+          return res.status(400).json({
+            message: "Invalid start date or end date provided."
+          });
+        }
+
+        for (const product of products) {
+          const { productId, quantity, productName } = product;
+
+          // Validate product fields
+          if (!productId || !quantity || quantity <= 0) {
+            return res.status(400).json({
+              message: `Invalid product details for "${productName, quoteDate, endDate}".`,
+            });
+          }
+
+          const existingQuotation = await Quotation.find({ quoteId });
+          if (!existingQuotation) {
+            return res.status(400).json({
+              message: `Quotation does not exist`,
+            });
+          }
+
+          // check if inventory exists
+          const existingOrder = await Order.find({ id: orderId });
+          if (!existingOrder) {
+            return res.status(400).json({
+              message: `Order does not exist`,
+            });
+          }
+
+          const existingInventory = await InventoryModel.find({
+            productId,
+            startdate: quoteDate,
+            enddate: endDate
+          });
+          if (existingInventory) {
+            return res.status(400).json({
+              message: `inventory does not exist`,
+            });
+          }
+
+          // Fetch product stock if inventory entry does not exist
+          const globalStock = existingInventory.availableQty
+
+          // Check stock availability
+          if (globalStock < quantity) {
+            return res.status(400).json({
+              message: `Insufficient stock for "${productName}" on ${quoteDate}.`,
+            });
+          }
+
+          // Update or create inventory entry          
+          existingInventory.reservedQty += quantity;
+          existingInventory.availableQty -= quantity;
+          await existingInventory.save();
+        }
+      }
+
+      updatedOrder.products = [...updatedOrder.products, ...products]
+      updatedOrder.GrandTotal = GrandTotal;
+      updatedOrder.GST = GST;
+      updatedOrder.discount = discount;
+      updatedOrder.adjustments = adjustments;
+      updatedOrder.labourecharge = labourecharge;
+      updatedOrder.transportcharge = transportcharge;
+
+
+      await updatedOrder.save();
+
+      res.status(201).json({
+        message: "Order created successfully and inventory updated.",
+        order: updatedOrder,
       });
     } catch (error) {
       console.error("Error creating order:", error);
@@ -294,6 +412,7 @@ class order {
       return res.status(500).json({ error: "Internal Server Error" });
     }
   }
+
   async refurbishment(req, res) {
     try {
       const { id } = req.params;
@@ -590,6 +709,7 @@ class order {
       res.status(500).json({ error: "Internal server error" });
     }
   }
+
   async getProductSalesData(req, res) {
     try {
       const { productId } = req.params;
@@ -808,21 +928,11 @@ class order {
             enddate: endDate,
           });
 
-          console.log(`product: `, product);
-          console.log(`quoteDate: `, quoteDate);
-          console.log(`endDate: `, endDate);
-
           if (inventory) {
             // Release the reserved quantity back to available
             inventory.availableQty += quantity;
             inventory.reservedQty -= quantity;
             await inventory.save();
-
-            // const productData = await ProductManagementModel.findById(productId);
-            // if (productData) {
-            //   productData.StockAvailable += quantity;
-            //   await productData.save();
-            // }
           }
         }
       }

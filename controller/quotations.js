@@ -6,6 +6,7 @@ const InventoryModel = require("../model/inventory");
 const cache = new NodeCache({ stdTTL: 100, checkperiod: 120 });
 const moment = require("moment");
 const { parseDate } = require("../utils/dateString");
+const Enquirymodel = require("../model/enquiry");
 
 class Quotations {
   // async createQuotations(req, res) {
@@ -150,6 +151,8 @@ class Quotations {
 
     try {
       const {
+        enquiryObjectId,
+        enquiryId,
         clientId,
         quoteDate,
         endDate,
@@ -161,6 +164,8 @@ class Quotations {
         category,
         status,
         GrandTotal,
+        labourecharge,
+        transportcharge,
         adjustments,
         discount,
         termsandCondition,
@@ -169,7 +174,10 @@ class Quotations {
         placeaddress,
         slots,
       } = req.body;
-      console.log(clientId,
+      console.log({
+        enquiryObjectId,
+        enquiryId,
+        clientId,
         quoteDate,
         endDate,
         quoteTime,
@@ -180,13 +188,17 @@ class Quotations {
         category,
         status,
         GrandTotal,
+        labourecharge,
+        transportcharge,
         adjustments,
         discount,
         termsandCondition,
         GST,
         executivename,
         placeaddress,
-        slots,)
+        slots,
+      });
+
       // Generate the next quotation ID
       const latestQuotation = await Quotationmodel.findOne()
         .sort({ _id: -1 })
@@ -199,6 +211,7 @@ class Quotations {
 
       // Create the new quotation
       const newQuotation = new Quotationmodel({
+        enquiryId,
         clientId,
         quoteId: nextQuoteId,
         clientName,
@@ -209,6 +222,8 @@ class Quotations {
         quoteDate,
         quoteTime,
         termsandCondition,
+        labourecharge,
+        transportcharge,
         GrandTotal,
         adjustments,
         discount,
@@ -219,6 +234,8 @@ class Quotations {
         placeaddress,
         slots,
       });
+
+      console.log()
 
       const savedQuotation = await newQuotation.save({ session });
 
@@ -236,13 +253,13 @@ class Quotations {
           const inventory = await InventoryModel.find({
             productId
           });
-    
+
           // Step 2: Check for overlapping date ranges
           const overlappingInventory = inventory.filter(item => {
             // Convert startdate and enddate from strings (e.g., 'DD-MM-YYYY') to Date objects
             const inventoryStartDate = parseDate(item.startdate);
             const inventoryEndDate = parseDate(item.enddate);
-    
+
             // Check if there's an overlap
             return inventoryStartDate <= end && inventoryEndDate >= start;
           });
@@ -265,6 +282,21 @@ class Quotations {
               `Insufficient stock for product: ${product.productName} in slot: ${slotName}. Only ${availableStock} available for the requested date range: ${quoteDate} to ${endDate}, due to overlapping reservations.`
             );
           }
+
+          console.log("enquiryObjectId: ", enquiryObjectId)
+
+          // check this out later
+          const updatedEnquiry = await Enquirymodel.findOneAndUpdate(
+            { _id: new mongoose.Types.ObjectId(enquiryObjectId) },
+            { status: 'sent' },
+            { new: true }
+          );
+
+          // if (!updatedEnquiry) {
+          //   console.log('Enquiry not found');
+          //   return null;
+          // }
+
 
           // // Update or create inventory for the current slot
           // const existingInventory = await InventoryModel.findOne({
