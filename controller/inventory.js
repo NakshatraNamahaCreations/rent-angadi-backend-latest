@@ -97,8 +97,12 @@ class Inventory {
   }
 
   async getInventoryByDateSlotProducts(req, res) {
-    console.log(`inside  getInventoryByDateSlotProducts`);
+    console.log(`inside getInventoryByDateSlotProducts***********`);
     const { startDate, endDate, products } = req.query;
+
+    console.log("Start Date:", startDate);
+    console.log("End Date:", endDate);
+    console.log("Products:", products);
 
     try {
       if (!startDate || !endDate || !products) {
@@ -171,6 +175,65 @@ class Inventory {
       res
         .status(500)
         .json({ message: "Failed to fetch inventory.", error: error.message });
+    }
+  }
+
+  async getAvailableStockByProductId(req, res) {
+    console.log("➡️ Inside getAvailableStockByProductId");
+
+    const { startDate, endDate, productId } = req.query;
+    console.log("startdate: ", startDate)
+    console.log("endDate: ", endDate)
+    console.log("productId: ", productId)
+
+    try {
+      if (!startDate || !endDate || !productId) {
+        return res.status(400).json({
+          message: "Start date, end date, and productId are required.",
+        });
+      }
+
+      // this works if startDate fromat is MM/DD/YYYY
+      // const start = parseDate(startDate.trim());
+      // const end = parseDate(endDate.trim());
+      
+      // if date format is DD/MM/YYYY
+      const start = startDate.trim();
+      const end = endDate.trim();
+
+      // Get the product details
+      const product = await ProductManagementModel.findById(productId).lean();
+      if (!product) {
+        return res.status(404).json({ message: "Product not found." });
+      }
+
+      // Fetch inventory entries overlapping with the given date range
+      const overlappingInventory = await InventoryModel.find({
+        productId,
+        $or: [
+          { startdate: { $lte: end }, enddate: { $gte: start } },
+          { startdate: { $lte: start }, enddate: { $gte: start } },
+        ],
+      });
+
+      const totalReserved = overlappingInventory.reduce(
+        (sum, entry) => sum + (entry.reservedQty || 0),
+        0
+      );
+
+      const minAvailableQty =
+        overlappingInventory.length > 0
+          ? Math.min(...overlappingInventory.map((entry) => entry.availableQty))
+          : product.ProductStock;
+
+      const availableStock = Math.max(minAvailableQty, 0);
+
+      console.log("available stock: ", availableStock)
+
+      return res.status(200).json({ productId, availableStock });
+    } catch (error) {
+      console.error("❌ Error in getAvailableStock:", error);
+      return res.status(500).json({ message: "Internal server error", error: error.message });
     }
   }
 

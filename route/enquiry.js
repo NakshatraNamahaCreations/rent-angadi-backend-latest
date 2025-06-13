@@ -16,7 +16,7 @@ router.get("/getEnquiryaggbyid/:id", EnquiryController.getEnquiryaggredata);
 router.post("/add-products", EnquiryController.addProductsToEnquiry);
 router.put('/updateenquiries/:id', EnquiryController.updateEnquiries);
 router.put('/update-product-data/:id', EnquiryController.updateProductData);
-router.delete('/delet-product-data/:id', EnquiryController.deleteProductFromEnquiry);
+router.delete('/delete-product-data/:id', EnquiryController.deleteProductFromEnquiry);
 router.put('/add/:id', EnquiryController.addProductToEnquiry);
 
 module.exports = router;

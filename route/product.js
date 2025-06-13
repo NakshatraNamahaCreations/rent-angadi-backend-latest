@@ -21,12 +21,18 @@ router.post(
   ProductManagemntController.addProductManagement
 );
 router.get("/getProducts", ProductManagemntController.getProductManagement);
+router.get("/product-details/:id", ProductManagemntController.getProductById);
 router.get(
   "/getProductsInventory",
   ProductManagemntController.getProductforInventory
 );
-router.post(
+// router.put(
+//   "/editProducts/:id",
+//   ProductManagemntController.editProductManagement
+// );
+router.put(
   "/editProducts/:id",
+  upload.any(), // Make sure this is present!
   ProductManagemntController.editProductManagement
 );
 

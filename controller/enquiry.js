@@ -4,6 +4,7 @@ const Counter = require("../model/getNextSequence");
 const Inventory = require("../model/inventory");
 const Clientmodel = require("../model/clients");
 const Quotationmodel = require("../model/quotations");
+const ProductManagementModel = require("../model/product");
 
 class Enquiry {
   async createEnquiry(req, res) {
@@ -180,7 +181,33 @@ class Enquiry {
     const { id } = req.params;
     try {
       const enquiryData = await Enquirymodel.findOne({ _id: id });
-      console.log("enquirydata: ", enquiryData)
+      // console.log("enquirydata: ", enquiryData)
+
+      const enrichedWithProducts = await Promise.all(
+        enquiryData.products.map(async (product) => {
+          // Fetch the product from ProductManagementModel using the productId
+          const productData = await ProductManagementModel.findOne({ _id: product.productId });
+
+          // Log the productData to debug
+          // console.log("Product Data: ", productData);
+
+          // If the product exists, extract the stock; otherwise, default to 0 stock
+          const productStock = productData ? productData.ProductStock : 0;
+
+          // Return the enriched product with updated stock
+          return {
+            ...product,          // Spread the existing product data
+            stock: productStock, // Inject the stock value into the product
+          };
+        })
+      );
+
+      enquiryData.products = enrichedWithProducts;
+
+      // console.log("enquirudata*********************: ", enquiryData)
+
+
+
 
       if (enquiryData.clientId) {
         // Fetch client info using clientId from enquiryData
@@ -192,7 +219,7 @@ class Enquiry {
           ...enquiryData.toObject(),  // convert Mongoose doc to plain object
           clientDetails   // add full client object or select fields
         };
-        console.log("enquiry client enrichedResponse: ", enrichedResponse)
+        // console.log("enquiry client enrichedResponse: ", enrichedResponse)
 
         if (enquiryData.status === "sent") {
           const quotationData = await Quotationmodel.findOne({ enquiryId: enquiryData.enquiryId });
@@ -202,7 +229,7 @@ class Enquiry {
             clientDetails,   // add full client object or select fields
             quotationData
           };
-          console.log("enquiry quotation enriched: ", quotationEnrichedResponse)
+          // console.log("enquiry quotation enriched: ", quotationEnrichedResponse)
           return res.status(200).json({ enrichedResponse: quotationEnrichedResponse });
         }
 
@@ -346,11 +373,14 @@ class Enquiry {
 
   async updateProductData(req, res) {
     const { id } = req.params; // Enquiry ID
-    const { productId, quantity } = req.body; // Product ID and updated quantity
+    const { productId, quantity, price, productName } = req.body; // Product ID and updated quantity
 
     try {
       // Find the enquiry document
-      const enquiry = await Enquirymodel.findOne({ _id: id });
+      // const enquiry = await Enquirymodel.findOne({ _id: id });
+      const enquiry = await Enquirymodel.findOne({ enquiryId: id });
+
+      console.log("enquiry productId, quantity,price: ", productId, quantity, price, productName)
 
       if (!enquiry) {
         return res.status(404).json({ error: "Enquiry not found" });
@@ -362,13 +392,48 @@ class Enquiry {
       );
 
       if (productIndex === -1) {
-        return res.status(404).json({ error: "Product not found in enquiry" });
+        const newProduct = {
+          productId: productId,
+          name: productName,
+          qty: quantity,
+          price: price || 0, // Default to 0 if price is not provided
+          total: quantity * (price || 0), // Calculate total based on quantity and price
+        };
+
+        // Add the new product to the products array
+        enquiry.products.push(newProduct);
+
+        // Recalculate GrandTotal (sum of all product totals)
+        const newGrandTotal = enquiry.products.reduce(
+          (sum, product) => sum + product.total,
+          0
+        );
+
+        // Save the updated enquiry document
+        const updatedEnquiry = await Enquirymodel.findOneAndUpdate(
+          { enquiryId: id },
+          {
+            $push: { products: newProduct },
+            $set: { GrandTotal: newGrandTotal },
+          },
+          { new: true } // Return the updated document
+        );
+
+        console.log("Updated Enquiry: ", updatedEnquiry);
+
+        return res.status(200).json({
+          success: "Product created and GrandTotal updated successfully",
+          data: updatedEnquiry,
+        });
       }
 
+
       // Update quantity and total for the selected product
-      enquiry.products[productIndex].quantity = quantity;
+      enquiry.products[productIndex].qty = quantity;
       enquiry.products[productIndex].total =
         quantity * enquiry.products[productIndex].price;
+
+      console.log("enquiry: ", enquiry)
 
       // Recalculate GrandTotal (sum of all product totals)
       const newGrandTotal = enquiry.products.reduce(
@@ -378,16 +443,18 @@ class Enquiry {
 
       // Update the document in the database
       const updatedEnquiry = await Enquirymodel.findOneAndUpdate(
-        { _id: id, "products.productId": productId },
+        { enquiryId: id, "products.productId": productId },
         {
           $set: {
-            "products.$.quantity": quantity,
+            "products.$.qty": quantity,
             "products.$.total": quantity * enquiry.products[productIndex].price,
             "GrandTotal": newGrandTotal
           }
         },
         { new: true } // Return the updated document
       );
+
+      console.log("updatedEnquiry: ", updatedEnquiry)
 
       return res.status(200).json({
         success: "Product quantity and GrandTotal updated successfully",
@@ -409,7 +476,7 @@ class Enquiry {
 
     try {
       // Find the enquiry document
-      const enquiry = await Enquirymodel.findOne({ _id: id });
+      const enquiry = await Enquirymodel.findOne({ enquiryId: id });
 
       if (!enquiry) {
         return res.status(404).json({ error: "Enquiry not found" });
@@ -430,7 +497,7 @@ class Enquiry {
 
       // Update the enquiry document
       const updatedEnquiry = await Enquirymodel.findOneAndUpdate(
-        { _id: id },
+        { enquiryId: id },
         {
           $set: {
             products: updatedProducts,

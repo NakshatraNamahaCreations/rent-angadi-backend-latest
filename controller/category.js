@@ -93,6 +93,9 @@ class Category {
               as: "subcategories",
             },
           },
+          {
+            $sort: { createdAt: -1 } // -1 for descending (newest first), 1 for ascending
+          }
         ]);
         if (category) {
           cache.set("allCategoriesWithSubcategories", category);

@@ -8,12 +8,14 @@ router.get(
   QuotationsController.getTotalAndTodayQuotationCount
 );
 router.get("/getallquotations", QuotationsController.allquotations);
+router.get("/getquotation/:quotationId", QuotationsController.getQuotationById);
 router.post("/updatefollowup/:id", QuotationsController.updatequotefollowup);
 router.delete("/deletequotation/:id", QuotationsController.postdeletequotation);
 router.get(
   "/getquotationaggbyid/:id",
   QuotationsController.getquotationaggredata
 );
+router.put('/updateQuotationOnOrder/:id', QuotationsController.updateQuotationOnOrder);
 router.put('/updateQuotation', QuotationsController.updateQuotation);
 router.post("/add-products", QuotationsController.addProductsToSlots);
 router.post('/addontherproductsameslots', QuotationsController.addOntherProductsToSlots);

@@ -31,17 +31,6 @@ const InventorySchema = new mongoose.Schema({
   },
 });
 
-// InventorySchema.virtual('startDateObj').get(function () {
-//   const [day, month, year] = this.startdate.split('-');
-//   return new Date(`${year}-${month}-${day}`);
-// });
-
-// // Virtual for endDate (converted to Date object)
-// InventorySchema.virtual('endDateObj').get(function () {
-//   const [day, month, year] = this.enddate.split('-');
-//   return new Date(`${year}-${month}-${day}`);
-// });
-
 
 const Inventory = mongoose.model("Inventory", InventorySchema);
 module.exports = Inventory;

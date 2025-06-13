@@ -112,7 +112,71 @@ class ProductManagement {
     }
   }
 
-  //edit ProductManagement
+  // //edit ProductManagement
+  // async editProductManagement(req, res) {
+  //   let id = req.params.id;
+  //   let {
+  //     ProductName,
+  //     ProductCategory,
+  //     ProductSubcategory,
+  //     ProductDesc,
+  //     ProductFeature,
+  //     ProductPrice,
+  //     ProductGst,
+  //     Productdetails,
+  //     qty,
+  //     maxGty,
+  //     ProductStock,
+  //     activeStatus,
+  //     Material,
+  //     ProductSize,
+  //     Color,
+  //     seater,
+  //     ProductImg1,
+  //     ProductImg2,
+  //     ProductImg3,
+  //   } = req.body;
+  //   let file = req.files && req.files[0]?.filename;
+
+  //   try {
+  //     let data = await ProductManagementModel.findOneAndUpdate(
+  //       { _id: id },
+  //       {
+  //         ProductName,
+  //         ProductCategory,
+  //         ProductSubcategory,
+  //         ProductDesc,
+  //         ProductFeature,
+  //         ProductPrice,
+  //         ProductGst,
+  //         Productdetails,
+  //         qty,
+  //         maxGty,
+  //         ProductStock,
+  //         activeStatus,
+  //         Material,
+  //         ProductSize,
+  //         Color,
+  //         seater,
+  //         ProductImg1,
+  //         ProductImg2,
+  //         ProductImg3,
+  //       },
+  //       { new: true } // Make sure to include this to return the updated document
+  //     );
+
+  //     if (data) {
+  //       return res.json({ success: "Updated", Product: data });
+  //     } else {
+  //       return res
+  //         .status(404)
+  //         .json({ success: false, message: "Data not found" });
+  //     }
+  //   } catch (error) {
+  //     console.error(error);
+  //     return res.status(500).json({ success: false, message: "Server error" });
+  //   }
+  // }
   async editProductManagement(req, res) {
     let id = req.params.id;
     let {
@@ -135,34 +199,41 @@ class ProductManagement {
       ProductImg1,
       ProductImg2,
       ProductImg3,
+      minqty, // add if needed
     } = req.body;
     let file = req.files && req.files[0]?.filename;
+
+    let updateObj = {
+      ProductName,
+      ProductCategory,
+      ProductSubcategory,
+      ProductDesc,
+      ProductFeature,
+      ProductPrice,
+      ProductGst,
+      Productdetails,
+      qty,
+      maxGty,
+      ProductStock,
+      activeStatus,
+      Material,
+      ProductSize,
+      Color,
+      seater,
+      ProductImg1,
+      ProductImg2,
+      ProductImg3,
+      minqty,
+    };
+    if (file) {
+      updateObj.ProductIcon = file;
+    }
 
     try {
       let data = await ProductManagementModel.findOneAndUpdate(
         { _id: id },
-        {
-          ProductName,
-          ProductCategory,
-          ProductSubcategory,
-          ProductDesc,
-          ProductFeature,
-          ProductPrice,
-          ProductGst,
-          Productdetails,
-          qty,
-          maxGty,
-          ProductStock,
-          activeStatus,
-          Material,
-          ProductSize,
-          Color,
-          seater,
-          ProductImg1,
-          ProductImg2,
-          ProductImg3,
-        },
-        { new: true } // Make sure to include this to return the updated document
+        updateObj,
+        { new: true }
       );
 
       if (data) {
@@ -177,6 +248,7 @@ class ProductManagement {
       return res.status(500).json({ success: false, message: "Server error" });
     }
   }
+
 
   // async updateProducts(req, res) {
   //   try {
@@ -477,6 +549,33 @@ class ProductManagement {
         .json({ message: "Internal server error.", error: error.message });
     }
   }
+  async getProductById(req, res) {
+    const { id } = req.params;
+
+    try {
+      // Check if ID is valid
+      if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ message: "Invalid product ID format." });
+      }
+
+      const product = await ProductManagementModel.findById(id);
+
+      if (product) {
+        console.log("Product found:", product);
+        return res.status(200).json({ product });
+      } else {
+        return res.status(404).json({ message: "Product not found." });
+      }
+
+    } catch (error) {
+      console.error("Error in getProductById:", error);
+      return res.status(500).json({
+        message: "Internal server error.",
+        error: error.message,
+      });
+    }
+  }
+
 
   async getProductforInventory(req, res) {
     try {

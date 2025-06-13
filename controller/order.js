@@ -52,6 +52,9 @@ class order {
         const start = parseDate(quoteDate.trim());
         const end = parseDate(endDate.trim());
 
+        console.log("start: ", start)
+        console.log("end: ", end)
+
         // Validate date range
         if (isNaN(start.getTime()) || isNaN(end.getTime())) {
           return res.status(400).json({
@@ -93,15 +96,15 @@ class order {
             item.enddate === endDate
           );
 
-          console.log("existingInventory", existingInventory);
+          // console.log("existingInventory", existingInventory);
           const findProd = await ProductManagementModel.findById(productId)
-          console.log("findProd", findProd);
+          // console.log("findProd", findProd);
           // Fetch product stock if inventory entry does not exist
           const globalStock = existingInventory
             ? existingInventory.availableQty
             : (await ProductManagementModel.findById(productId)).ProductStock;
 
-          console.log(`globalstock: `, globalStock);
+          console.log(`globalstock ${product.productName} wth ${product.productId}: `, globalStock);
 
           // Check stock availability
           if (globalStock < quantity) {
@@ -334,6 +337,32 @@ class order {
       return res.status(500).json({ error: "Failed to retrieve orders" });
     }
   }
+
+  async getOrderById(req, res) {
+    const { id } = req.params; // Get the order ID from the route params
+    console.log("id: ", id)
+
+    try {
+      // // Find the order by its ID
+      // const order = await Order.findById(id)
+      //   .populate('clientId') // Optionally, populate related fields if needed (e.g., client details)
+      //   .populate('products.productId') // Optionally, populate product details if needed
+      //   .exec();
+      const order = await Order.findById(id)
+
+      // If no order found, return a 404 response
+      if (!order) {
+        return res.status(404).json({ message: 'Order not found.' });
+      }
+
+      // Return the found order as a response
+      return res.status(200).json({ order });
+    } catch (error) {
+      // Handle errors (e.g., invalid ObjectId format, database issues)
+      console.error(error);
+      return res.status(500).json({ message: 'Internal server error.', error: error.message });
+    }
+  };
 
   async findanddelete(req, res) {
     try {

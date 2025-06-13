@@ -8,7 +8,7 @@ const EnquirySchema = new mongoose.Schema(
       require: true,
     },
     clientId: {
-      type: mongoose.Schema.Types.ObjectId, 
+      type: mongoose.Schema.Types.ObjectId,
       required: true,
     },
     endDate: {

@@ -4,6 +4,7 @@ const orderController = require("../controller/order");
 
 router.post("/postaddorder", orderController.postaddorder);
 router.get("/getallorder", orderController.getallorders);
+router.get("/getOrder/:id", orderController.getOrderById);
 router.get("/getApprovedData", orderController.getApprovedOrders);
 router.get("/TotalNumberOfOrder", orderController.getTotalNumberOfOrder);
 router.get("/findwithclientid/:id", orderController.getfindwithClientID);
