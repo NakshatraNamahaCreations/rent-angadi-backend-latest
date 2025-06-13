@@ -249,7 +249,7 @@ class Enquiry {
   }
 
   async postdeleteEnquiry(req, res) {
-    let id = req.params.id;
+    const { id } = req.params;
     try {
       const data = await Enquirymodel.deleteOne({ _id: id });
       if (data.deletedCount > 0) {
@@ -472,7 +472,7 @@ class Enquiry {
   async deleteProductFromEnquiry(req, res) {
     const { id } = req.params;
     const { productId } = req.body;
-    console.log(productId, "productId")
+    console.log("productId: ", productId)
 
     try {
       // Find the enquiry document

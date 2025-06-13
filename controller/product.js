@@ -1,6 +1,7 @@
 const ProductManagementModel = require("../model/product");
 const InventoryModel = require("../model/inventory");
 const XLSX = require("xlsx");
+const { default: mongoose } = require("mongoose");
 
 const generateSKU = () => {
   const chars = "0123456789";
