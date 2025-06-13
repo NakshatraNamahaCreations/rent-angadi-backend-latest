@@ -612,25 +612,43 @@ class Quotations {
                 ],
                 slot: slot.slotName,
               });
+              console.log("overlapping invent: ", overlappingReservations)
 
-              const totalReservedQty = overlappingReservations.reduce(
-                (sum, reservation) => sum + reservation.reservedQty,
+              // const totalAvaiableQty = overlappingReservations.reduce(
+              //   (sum, reservation) => sum + reservation.availableQty,
+              //   0
+              // );
+
+              // new
+              // const totalAvaiableQty = overlappingReservations.length > 0
+              //   ? overlappingReservations.reduce((sum, reservation) => sum + reservation.availableQty, 0)
+              //   : productDetails?.ProductStock || 0;  // Use default stock from productDetails if no overlapping
+
+              // console.log("total avail: ", totalAvaiableQty)
+
+              const totalReserved = overlappingReservations.reduce(
+                (sum, entry) => sum + (entry.reservedQty || 0),
                 0
               );
+              let availableStock = productDetails.ProductStock;
+
+              if (overlappingReservations.length > 0) {
+                availableStock = Math.max(productDetails.ProductStock - totalReserved, 0); // Ensure no negative stock
+              }
 
               // const stockAvailable = product.stock || 0;
               // const availableStock = stockAvailable - totalReservedQty;
-              const availableStock = productDetails?.ProductStock - totalReservedQty;
+              // const availableStock = productDetails?.ProductStock - totalReservedQty;
 
 
-              let status = "Not Available";
-              if (availableStock > 0) {
-                status = "Available";
-              } else if (stockAvailable > 0 && totalReservedQty >= stockAvailable) {
-                status = "Booked";
-              }
+              // let status = "Not Available";
+              // if (availableStock > 0) {
+              //   status = "Available";
+              // } else if (stockAvailable > 0 && totalReservedQty >= stockAvailable) {
+              //   status = "Booked";
+              // }
 
-              console.log("availableStock: ", availableStock)
+              // console.log("availableStock: ", availableStock)
 
               return {
                 productId: product.productId,
@@ -639,8 +657,9 @@ class Quotations {
                 quantity: product.quantity || product.qty,
                 total: product.total,
                 ProductIcon: productDetails?.ProductIcon || null,
+                // availableStock: totalAvaiableQty,
                 availableStock,
-                status,
+                // status,
               };
             })
           );

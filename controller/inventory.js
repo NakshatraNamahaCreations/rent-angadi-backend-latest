@@ -102,7 +102,7 @@ class Inventory {
 
     console.log("Start Date:", startDate);
     console.log("End Date:", endDate);
-    console.log("Products:", products);
+    console.log("products:", products);
 
     try {
       if (!startDate || !endDate || !products) {
@@ -148,25 +148,56 @@ class Inventory {
           (item) => item.productId.toString() === product._id.toString()
         );
 
+        // const totalReserved = inventoryEntries.reduce(
+        //   (sum, item) => sum + item.reservedQty,
+        //   0
+        // );
+
+        // const minAvailableQty =
+        //   inventoryEntries.length > 0
+        //     ? Math.min(...inventoryEntries.map((item) => item.availableQty))
+        //     : product.ProductStock;
+        // return {
+        //   productId: product._id,
+        //   productName: product.ProductName,
+        //   totalStock: product.ProductStock,
+        //   reservedStock: totalReserved,
+        //   availableStock: Math.max(minAvailableQty, 0),
+        //   // slot: slot,
+        //   price: product.ProductPrice || 0,
+        //   StockAvailable: product.StockAvailable,
+        // };
+
+        console.log("inventoryEntries: ", inventoryEntries)
+
+        // Calculate total reserved quantity from the overlapping inventory
         const totalReserved = inventoryEntries.reduce(
-          (sum, item) => sum + item.reservedQty,
+          (sum, entry) => sum + (entry.reservedQty || 0),
           0
         );
 
-        const minAvailableQty =
-          inventoryEntries.length > 0
-            ? Math.min(...inventoryEntries.map((item) => item.availableQty))
-            : product.ProductStock;
+        // If there are no overlapping reservations, use the product stock directly
+        let availableStock = product.ProductStock;
+
+        // If there are overlapping reservations, subtract the reserved quantity from the product stock
+        if (inventoryEntries.length > 0) {
+          availableStock = Math.max(product.ProductStock - totalReserved, 0); // Ensure no negative stock
+        }
+
+        console.log(`totalReserved ${product}`, totalReserved)
+        console.log(`available stock ${product}`, availableStock )
+
+        // Returning the product details with calculated available stock
         return {
           productId: product._id,
           productName: product.ProductName,
           totalStock: product.ProductStock,
           reservedStock: totalReserved,
-          availableStock: Math.max(minAvailableQty, 0),
-          // slot: slot,
+          availableStock: Math.max(availableStock, 0),  // Ensure available stock doesn't go below 0
           price: product.ProductPrice || 0,
           StockAvailable: product.StockAvailable,
         };
+
       });
 
       res.status(200).json({ stock });
@@ -196,7 +227,7 @@ class Inventory {
       // this works if startDate fromat is MM/DD/YYYY
       // const start = parseDate(startDate.trim());
       // const end = parseDate(endDate.trim());
-      
+
       // if date format is DD/MM/YYYY
       const start = startDate.trim();
       const end = endDate.trim();
@@ -216,21 +247,25 @@ class Inventory {
         ],
       });
 
+      // Calculate total reserved quantity from the overlapping inventory
       const totalReserved = overlappingInventory.reduce(
         (sum, entry) => sum + (entry.reservedQty || 0),
         0
       );
 
-      const minAvailableQty =
-        overlappingInventory.length > 0
-          ? Math.min(...overlappingInventory.map((entry) => entry.availableQty))
-          : product.ProductStock;
+      // If there are no overlapping reservations, use the product stock directly
+      let availableStock = product.ProductStock;
 
-      const availableStock = Math.max(minAvailableQty, 0);
+      // If there are overlapping reservations, subtract the reserved quantity from the product stock
+      if (overlappingInventory.length > 0) {
+        availableStock = Math.max(product.ProductStock - totalReserved, 0); // Ensure no negative stock
+      }
 
-      console.log("available stock: ", availableStock)
+      console.log("overlappingInventory: ", overlappingInventory);
+      console.log("available stock: ", availableStock);
 
       return res.status(200).json({ productId, availableStock });
+
     } catch (error) {
       console.error("❌ Error in getAvailableStock:", error);
       return res.status(500).json({ message: "Internal server error", error: error.message });
