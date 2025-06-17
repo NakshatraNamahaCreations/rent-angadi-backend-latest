@@ -177,6 +177,262 @@ class order {
     }
   }
 
+  // async updateOrder(req, res) {
+  //   const { productId, quantity, quoteDate, endDate } = req.body;
+
+  //   try {
+  //     // Fetch the current available stock of the product
+  //     const productData = await ProductManagementModel.findById(productId);
+  //     if (!productData) {
+  //       return res.status(404).json({
+  //         message: `Product not found`
+  //       });
+  //     }
+
+  //     // Check if the selected quantity exceeds the available stock
+  //     if (quantity > productData.ProductStock) {
+  //       return res.status(400).json({
+  //         message: `Insufficient stock. Available: ${productData.ProductStock}`,
+  //         availableStock: productData.ProductStock  // Send back available stock
+  //       });
+  //     }
+
+  //     // Check if the inventory for the product exists within the date range
+  //     const inventory = await InventoryModel.findOne({ productId, startdate: quoteDate, enddate: endDate });
+
+  //     if (inventory) {
+  //       inventory.reservedQty += quantity;
+  //       inventory.availableQty -= quantity;
+  //       await inventory.save();
+  //     } else {
+  //       // If no inventory entry, create a new one
+  //       const newInventory = new InventoryModel({
+  //         productId,
+  //         startdate: quoteDate,
+  //         enddate: endDate,
+  //         reservedQty: quantity,
+  //         availableQty: productData.ProductStock - quantity,
+  //       });
+  //       await newInventory.save();
+  //     }
+
+  //     // Update the global product stock
+  //     productData.ProductStock -= quantity;
+  //     await productData.save();
+
+  //     res.status(200).json({
+  //       message: "Order updated and inventory updated successfully."
+  //     });
+
+  //   } catch (error) {
+  //     console.error("Error updating order:", error);
+  //     res.status(500).json({
+  //       message: "Failed to update order and inventory.",
+  //       error: error.message,
+  //     });
+  //   }
+  // }
+
+  async updateOrderById(req, res) {
+    console.log("inside updateOrderById")
+    const { id } = req.params
+    const { productId, productName, quantity, quoteDate, endDate, isNewProduct, unitPrice } = req.body;
+
+    // Start a new session for the transaction
+    const session = await mongoose.startSession();
+
+    try {
+      session.startTransaction(); // Begin the transaction
+
+      // Step 1: Fetch the order using the provided orderId
+      const order = await Order.findById(id).session(session);
+      if (!order) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(404).json({
+          message: `Order not found`
+        });
+      }
+      console.log({ productId, quantity, quoteDate, endDate, isNewProduct, unitPrice, order })
+      console.log(`typesof  : `, typeof (quantity), typeof (unitPrice))
+
+      // Check if the inventory for the product exists within the date range
+      const inventory = await InventoryModel.findOne({
+        productId,
+        startdate: quoteDate,
+        enddate: endDate
+      }).session(session);
+      console.log(` inven : `, inventory)
+
+      if (!isNewProduct && !inventory) {
+        console.log(`Inventory doesn't exist`)
+        return res.status(400).json({ message: `Inventory doesn't exist` });
+      }
+      // console.log("found order: ", order)
+      console.log("slots[0].products: ", order.slots[0].products)
+      console.log({ quantity, inventory })
+
+      const findProd = await ProductManagementModel.findById(productId)
+        .select('ProductStock') // Correct way to select the field
+        .lean() // Convert the result to a plain JavaScript object
+        .session(session); // Make sure to associate with the session if you're using transactions
+
+
+      // // Step 4: Update the product's quantity and total in the order's slots[0].products[]
+      const slot = order.slots[0]; // Assuming you're working with the first slot
+      let product;
+      if (!isNewProduct) {
+        product = slot.products.find(prod => prod.productId.toString() === productId);
+        // Update the product quantity
+        product.quantity = quantity;
+
+        // Replace the updated product back into the order's slot products array
+        slot.products = slot.products.map(prod =>
+          prod.productId.toString() === productId
+            ? { ...prod, quantity: product.quantity, total: product.total }
+            : prod
+        );
+        product.total = quantity * product.unitPrice; // Recalculate total
+      } else {
+        product = {
+          productId: productId,
+          productName, // Product name fetched from findProd
+          quantity,
+          price: unitPrice, // Price fetched from findProd
+          total: quantity * unitPrice, // Initial total
+        };
+        slot.products.push(product);
+      }
+
+      console.log("after updating products: ", order.slots[0].products)
+
+      if (quantity <= findProd.ProductStock) {
+        if (!inventory) {
+          const newInventory = new InventoryModel({
+            productId,
+            reservedQty: Number(quantity),
+            availableQty: Number(findProd.ProductStock - Number(quantity)), // Available qty after reserving
+            startdate: quoteDate,
+            enddate: endDate
+          });
+          console.log("New inventory created:", newInventory);
+
+          // Save the newly created inventory record
+          await newInventory.save({ session });
+        } else {
+          inventory.reservedQty = Number(quantity);
+          inventory.availableQty = Number(findProd.ProductStock - Number(quantity));
+          console.log("inventory.reservedQty: ", inventory.reservedQty)
+          await inventory.save({ session });
+          const updatedInventory = await InventoryModel.findOne({
+            productId,
+            startdate: quoteDate,
+            enddate: endDate
+          }).session(session);
+          console.log("after updating inven: ", updatedInventory)
+        }
+
+      } else {
+        // Handle the case if quantity exceeds available stock (optional)
+        res.status(404).json({ message: "prod doesnt exist" })
+      }
+
+      // // if (product && quantity <= (inventory.reservedQty + product.quantity)) {
+      // if (product && quantity <= findProd.ProductStock) {
+      //   inventory.reservedQty = quantity;
+      //   inventory.availableQty = findProd.ProductStock - quantity;
+      //   console.log("inventory.reservedQty: ", inventory.reservedQty)
+      //   await inventory.save({ session });
+      //   const updatedInventory = await InventoryModel.findOne({
+      //     productId,
+      //     startdate: quoteDate,
+      //     enddate: endDate
+      //   }).session(session);
+      //   console.log("after updating inven: ", updatedInventory)
+
+      // } else {
+      //   // Handle the case if quantity exceeds available stock (optional)
+      //   res.status(404).json({ message: "prod doesnt exist" })
+      // }
+
+      // Recalculate the grand total
+      let subtotal = 0;
+
+      // Calculate subtotal (sum of all products' total)
+      order.slots.forEach(slot => {
+        slot.products.forEach((prod, index) => {
+          console.log(` ${index} prod: `, prod.total, `typeof `, typeof (prod.total))
+          subtotal += prod.total; // Add each product's total to the subtotal
+        });
+      });
+      console.log({ subtotal })
+
+      const { labourecharge, transportcharge, discount, GST, roundOff, GrandTotal } = order
+      subtotal += Number(labourecharge || 0) + Number(transportcharge || 0);
+      console.log({ subtotal })
+
+      // Apply discount
+      const discountAmt = subtotal * (Number(discount || 0) / 100);
+      const afterDiscount = subtotal - discountAmt;
+
+      // Calculate GST
+      const gstAmt = afterDiscount * (Number(GST || 0) / 100);
+
+      // Calculate the final Grand Total
+      const grandTotal = Math.round(afterDiscount + gstAmt + Number(roundOff || 0));
+      console.log({ discountAmt, afterDiscount, gstAmt })
+
+      // Step 9: Update the order's GrandTotal
+      order.GrandTotal = grandTotal;
+
+      // Save the updated order once at the end
+      await order.save({ session });
+
+      console.log({ GrandTotal, labourecharge, transportcharge, discount, GST, roundOff })
+
+
+      // Commit the transaction if everything is successful
+      await session.commitTransaction();
+      session.endSession(); // End the session
+
+      res.status(200).json({
+        message: "Order updated and inventory updated successfully."
+      });
+
+    } catch (error) {
+      // Abort the transaction if there's an error
+      await session.abortTransaction();
+      session.endSession(); // End the session after abort
+
+      console.error("Error updating order:", error);
+      res.status(500).json({
+        message: "Failed to update order and inventory.",
+        error: error.message,
+      });
+    }
+  }
+
+  // // Fetch the current available stock of the product
+  // const productData = await ProductManagementModel.findById(productId).select('ProductStock').lean().session(session);
+  // if (!productData) {
+  //   await session.abortTransaction(); // Abort if product is not found
+  //   session.endSession();
+  //   return res.status(404).json({
+  //     message: `Product not found`
+  //   });
+  // }
+
+  // // Check if the selected quantity exceeds the available stock
+  // if (quantity > productData.ProductStock) {
+  //   await session.abortTransaction(); // Abort if there's insufficient stock
+  //   session.endSession();
+  //   return res.status(400).json({
+  //     message: `Insufficient stock. Available: ${productData.ProductStock}`,
+  //     availableStock: productData.ProductStock  // Send back available stock
+  //   });
+  // }
+
+
   async updateOrder(req, res) {
     const {
       quoteId,
@@ -348,15 +604,56 @@ class order {
       //   .populate('clientId') // Optionally, populate related fields if needed (e.g., client details)
       //   .populate('products.productId') // Optionally, populate product details if needed
       //   .exec();
-      const order = await Order.findById(id)
+      const order = await Order.findById(id).lean()
 
       // If no order found, return a 404 response
       if (!order) {
         return res.status(404).json({ message: 'Order not found.' });
       }
 
+      // if (order?.slots && order.slots[0]?.products) {
+      const updatedProducts = await Promise.all(order.slots[0].products.map(async (product) => {
+        // Fetch product data once using ProductManagementModel.find and lean to get a plain object
+        const productData = await ProductManagementModel.findById(product.productId)
+          .select('ProductStock')
+          .lean(); // Use lean to get a plain JavaScript object
+
+        console.log("productData: ", productData); // productData will now be a plain object
+
+        // If product data is found, inject ProductStock, else return the product as is
+        if (productData) {
+          console.log("adding ProductStock"); // productData will now be a plain object
+          return {
+            ...product,  // Spread the existing product details
+            ProductStock: productData.ProductStock,  // Inject the fetched ProductStock
+          };
+        }
+
+        // If no product data is found, return the product as is
+        return product;
+      }));
+
+      // Log the updated products for debugging
+      console.log("updatedProducts: ", updatedProducts);
+
+
+      // Update the slot with the updated products
+      const updatedSlot = {
+        ...order.slots[0],  // Use the first slot from the order directly
+        products: updatedProducts,  // Add the updated products array to the slot
+      };
+
+      // Update the order with the updated slot
+      const updatedOrder = {
+        ...order,
+        slots: [updatedSlot],  // Wrap the updated slot in an array again
+      };
+
+      // Log the updated products for debugging
+      // console.log("updatedProducts: ", updatedProducts);
+
       // Return the found order as a response
-      return res.status(200).json({ order });
+      return res.status(200).json({ order: updatedOrder });
     } catch (error) {
       // Handle errors (e.g., invalid ObjectId format, database issues)
       console.error(error);

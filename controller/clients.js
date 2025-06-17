@@ -225,7 +225,7 @@ class Clients {
       return res.json({ Client: cachedSubcategories });
     } else {
       try {
-        let Client = await Clientmodel.find({});
+        let Client = await Clientmodel.find({}).sort({ createdAt: -1 });
         if (Client) {
           cache.set("allclients", Client);
           return res.json({ Client: Client });

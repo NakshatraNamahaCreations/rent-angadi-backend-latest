@@ -849,7 +849,7 @@ class Quotations {
   // }
 
   async postdeletequotation(req, res) {
-    let id = req.params.id;
+    const { id } = req.params;
     try {
       const data = await Quotationmodel.deleteOne({ _id: id });
       if (data.deletedCount > 0) {
@@ -2073,73 +2073,25 @@ class Quotations {
   // 19 May 25
   async cancelQuotation(req, res) {
     console.log(`inside  cancelQuotation`);
-    const { quotationId } = req.body;
-    console.log(`qid: `, quotationId);
+    const { id } = req.params;
+    console.log(`quotaion id: `, id);
 
-    // Start transaction
-    const session = await mongoose.startSession();
     try {
-      session.startTransaction();
-
       // Get the quotation
-      const quotation = await Quotationmodel.findById(quotationId).session(session);
-      console.log(`quotation: `, quotation);
+      const quotation = await Quotationmodel.findById(id);
+      console.log(`Found quotation: `, quotation);
       if (!quotation) {
         throw new Error("Quotation not found");
       }
 
-      // Get all products from all slots
-      const allProducts = [];
-
-      // Check if slots exist and is an array
-      if (quotation.slots && Array.isArray(quotation.slots)) {
-        // Iterate through each slot
-        quotation.slots.forEach(slot => {
-          // Check if Products exists in this slot and is an array
-          if (slot.Products && Array.isArray(slot.Products)) {
-            // Add all products from this slot to our array
-            allProducts.push(...slot.Products);
-          }
-        });
-      }
-
-      // Restore inventory for each product
-      for (const product of allProducts) {
-        // Find and update inventory records
-        const inventoryRecords = await InventoryModel.find({
-          productId: product.productId,
-          startdate: { $lte: quotation.endDate },
-          enddate: { $gte: quotation.quoteDate },
-          slot: product.slotName  // Add slot condition
-        }).session(session);
-
-        for (const record of inventoryRecords) {
-          record.reservedQty -= product.quantity;  // Decrease reserved quantity
-          record.availableQty += product.quantity;  // Increase available quantity
-          await record.save({ session });
-        }
-
-        // const productData = await ProductModel.findById(product.productId);
-        // if (productData) {
-        //   productData.StockAvailable += product.quantity;
-        //   await productData.save({ session });
-        // }
-      }
-
       // Update quotation status
       quotation.status = "cancelled";
-      await quotation.save({ session });
-
-      // Commit transaction
-      await session.commitTransaction();
-      session.endSession();
+      await quotation.save();
 
       res.status(200).json({ message: "Quotation cancelled successfully" });
     } catch (error) {
       console.log(`error in cancelQuotation `);
       // Abort transaction on error
-      await session.abortTransaction();
-      session.endSession();
       console.error("Error cancelling quotation:", error);
       res.status(500).json({ error: error.message || "Failed to cancel quotation" });
     }

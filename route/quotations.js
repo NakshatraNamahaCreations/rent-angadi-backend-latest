@@ -22,6 +22,6 @@ router.post('/addontherproductsameslots', QuotationsController.addOntherProducts
 router.put('/updateQuotationquantity', QuotationsController.updateQuotation1);
 router.post('/addontherproductsameslotstwo', QuotationsController.addOntherProductsToSlotstwo);
 router.post('/addontherproductstoSlotsquotation', QuotationsController.addOntherProductsToSlotsQuotation);
-router.post("/cancel", QuotationsController.cancelQuotation);
+router.post("/cancel/:id", QuotationsController.cancelQuotation);
 
 module.exports = router;

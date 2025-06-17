@@ -168,7 +168,7 @@ class Inventory {
         //   StockAvailable: product.StockAvailable,
         // };
 
-        console.log("inventoryEntries: ", inventoryEntries)
+        // console.log("inventoryEntries: ", inventoryEntries)
 
         // Calculate total reserved quantity from the overlapping inventory
         const totalReserved = inventoryEntries.reduce(

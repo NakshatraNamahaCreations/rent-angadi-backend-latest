@@ -8,6 +8,7 @@ router.get("/getOrder/:id", orderController.getOrderById);
 router.get("/getApprovedData", orderController.getApprovedOrders);
 router.get("/TotalNumberOfOrder", orderController.getTotalNumberOfOrder);
 router.get("/findwithclientid/:id", orderController.getfindwithClientID);
+router.put("/updateOrderById/:id", orderController.updateOrderById);
 router.put("/updateStatus/:id", orderController.updateStatus);
 router.put("/refurbishment/:id", orderController.refurbishment);
 router.get(
