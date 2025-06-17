@@ -269,11 +269,11 @@ class order {
         return res.status(400).json({ message: `Inventory doesn't exist` });
       }
       // console.log("found order: ", order)
-      console.log("slots[0].products: ", order.slots[0].products)
+      // console.log("slots[0].products: ", order.slots[0].products)
       console.log({ quantity, inventory })
 
       const findProd = await ProductManagementModel.findById(productId)
-        .select('ProductStock') // Correct way to select the field
+        .select('ProductStock ProductPrice') // Correct way to select the field
         .lean() // Convert the result to a plain JavaScript object
         .session(session); // Make sure to associate with the session if you're using transactions
 
@@ -283,8 +283,15 @@ class order {
       let product;
       if (!isNewProduct) {
         product = slot.products.find(prod => prod.productId.toString() === productId);
+        // Validate quantity and unitPrice before calculating total
+        if (isNaN(quantity) || isNaN(unitPrice)) {
+          console.log(`quantity type: ${typeof quantity}, unitPrice type: ${typeof unitPrice}`);
+          return res.status(400).json({ message: "Invalid quantity or unit price" });
+        }
+
         // Update the product quantity
         product.quantity = quantity;
+        product.total = quantity * findProd.ProductPrice
 
         // Replace the updated product back into the order's slot products array
         slot.products = slot.products.map(prod =>
@@ -292,19 +299,19 @@ class order {
             ? { ...prod, quantity: product.quantity, total: product.total }
             : prod
         );
-        product.total = quantity * product.unitPrice; // Recalculate total
+        // product.total = quantity * product.unitPrice; // Recalculate total
       } else {
         product = {
           productId: productId,
           productName, // Product name fetched from findProd
           quantity,
-          price: unitPrice, // Price fetched from findProd
-          total: quantity * unitPrice, // Initial total
+          // price: Number(unitPrice), // Price fetched from findProd
+          total: quantity * Number(unitPrice), // Initial total
         };
         slot.products.push(product);
       }
 
-      console.log("after updating products: ", order.slots[0].products)
+      // console.log("after updating products: ", order.slots[0].products)
 
       if (quantity <= findProd.ProductStock) {
         if (!inventory) {
@@ -634,7 +641,7 @@ class order {
       }));
 
       // Log the updated products for debugging
-      console.log("updatedProducts: ", updatedProducts);
+      // console.log("updatedProducts: ", updatedProducts);
 
 
       // Update the slot with the updated products
@@ -661,11 +668,91 @@ class order {
     }
   };
 
-  async findanddelete(req, res) {
+  async deleteProductInOrderById(req, res) {
+    const { id } = req.params
+    const { productId, quoteDate, endDate } = req.body;
+
+    const session = await mongoose.startSession();
+
     try {
-      let data = await ordermodel.find({ phone });
+      session.startTransaction();
+
+      // Step 1: Fetch the order
+      const order = await Order.findById(id).session(session);
+      if (!order) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      // Step 2: Find the product in the order and remove it
+      const slot = order.slots[0]; // Assuming you are dealing with the first slot
+      const productIndex = slot.products.findIndex(prod => prod.productId.toString() === productId);
+      if (productIndex === -1) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(404).json({ message: "Product not found in order" });
+      }
+
+      // Remove product from the order
+      const [removedProduct] = slot.products.splice(productIndex, 1);
+
+      // Step 3: Update the inventory
+      const inventory = await InventoryModel.findOne({
+        productId: removedProduct.productId,
+        startdate: quoteDate,
+        enddate: endDate
+      }).session(session);
+
+      if (inventory) {
+        // Reduce reservedQty for this product in the inventory
+        inventory.reservedQty -= removedProduct.quantity;
+        inventory.availableQty += removedProduct.quantity;
+
+        // Save the updated inventory
+        await inventory.save({ session });
+      }
+
+      // Step 4: Recalculate the order total
+      let subtotal = 0;
+      order.slots.forEach(slot => {
+        slot.products.forEach(prod => {
+          subtotal += prod.total; // Add each product's total to the subtotal
+        });
+      });
+
+      // Apply discount, transport, and other charges
+      const { labourecharge, transportcharge, discount, GST, roundOff } = order;
+      subtotal += Number(labourecharge || 0) + Number(transportcharge || 0);
+
+      // Apply discount
+      const discountAmt = subtotal * (Number(discount || 0) / 100);
+      const afterDiscount = subtotal - discountAmt;
+
+      // Calculate GST
+      const gstAmt = afterDiscount * (Number(GST || 0) / 100);
+
+      // Final Grand Total
+      const grandTotal = Math.round(afterDiscount + gstAmt + Number(roundOff || 0));
+
+      // Step 5: Update the GrandTotal in the order
+      order.GrandTotal = grandTotal;
+
+      // Save the updated order
+      await order.save({ session });
+
+      // Commit the transaction
+      await session.commitTransaction();
+      session.endSession();
+
+      res.status(200).json({ message: "Product deleted from order and inventory updated successfully" });
+
     } catch (error) {
-      return res.status(500).json({ error: "Failed to retrieve " });
+      // Abort the transaction if there's an error
+      await session.abortTransaction();
+      session.endSession();
+      console.error("Error deleting product:", error);
+      res.status(500).json({ message: "Failed to delete product from order and update inventory", error: error.message });
     }
   }
 

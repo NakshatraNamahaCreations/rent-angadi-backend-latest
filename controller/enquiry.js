@@ -30,7 +30,14 @@ class Enquiry {
 
     console.log(placeaddress);
 
-    console.log(`createEnquiry products: `, products);
+    const processedProducts = products.map(product => ({
+      ...product,
+      qty: parseInt(product.qty, 10),
+      price: parseInt(product.price, 10),
+      total: parseInt(product.total, 10),
+    }));
+
+    console.log(`processedProducts products: `, processedProducts);
 
     try {
       const latestCustomer = await Enquirymodel.findOne()
@@ -46,7 +53,7 @@ class Enquiry {
         clientName,
         executivename,
         endDate,
-        products,
+        products: processedProducts,
         clientNo,
         address,
         category,

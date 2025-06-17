@@ -19,6 +19,8 @@ exports.createRefurbishment = async (req, res) => {
       damage: product.damage || "",
       price: product.price,
     }));
+    console.log("products: ", products)
+    console.log("formatted products: ", formattedProducts)
 
     const newRefurbishment = new RefurbishmentData({
       products: formattedProducts,
@@ -27,6 +29,7 @@ exports.createRefurbishment = async (req, res) => {
       status, // Add status field
       orderId
     });
+    console.log("newRefurb: ", newRefurbishment)
 
     let savedRefurbishment = await newRefurbishment.save();
     res.status(201).json({ message: "Refurbishment created successfully", savedRefurbishment });
