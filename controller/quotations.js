@@ -290,7 +290,7 @@ class Quotations {
             { _id: new mongoose.Types.ObjectId(enquiryObjectId) },
             { status: 'sent' },
             { new: true }
-          );
+          ).session(session);
 
           // if (!updatedEnquiry) {
           //   console.log('Enquiry not found');
@@ -657,6 +657,9 @@ class Quotations {
                 quantity: product.quantity || product.qty,
                 total: product.total,
                 ProductIcon: productDetails?.ProductIcon || null,
+                productQuoteDate: product.productQuoteDate,
+                productEndDate: product.productEndDate,
+                productSlot: product.productSlot,
                 // availableStock: totalAvaiableQty,
                 availableStock,
                 // status,

@@ -8,11 +8,11 @@ const SlotSchema = new mongoose.Schema({
   // },
   quoteDate: {
     type: String,
-    require: true,
+    required: true,
   },
   endDate: {
     type: String,
-    require: true,
+    required: true,
   },
   Products: {
     type: Array,
@@ -21,7 +21,7 @@ const SlotSchema = new mongoose.Schema({
 const QuotationSchema = new mongoose.Schema({
   quoteId: {
     type: String,
-    require: true,
+    required: true,
   },
   enquiryId: {
     type: Number,
