@@ -276,7 +276,7 @@ class order {
   async updateOrderById(req, res) {
     console.log("inside updateOrderById")
     const { id } = req.params
-    const { productId, productName, quantity, quoteDate, endDate, isNewProduct, unitPrice, productQuoteDate, productEndDate, productSlot } = req.body;
+    const { productId, productName, quantity, quoteDate, endDate, isNewProduct, productQuoteDate, productEndDate, productSlot } = req.body;
 
     // Start a new session for the transaction
     const session = await mongoose.startSession();
@@ -293,16 +293,57 @@ class order {
           message: `Order not found`
         });
       }
-      console.log({ productId, quantity, quoteDate, endDate, isNewProduct, unitPrice, order, productQuoteDate, productEndDate, productSlot })
-      console.log(`typesof  : `, typeof (quantity), typeof (unitPrice))
+      console.log({ productId, quantity, quoteDate, endDate, isNewProduct, productQuoteDate, productEndDate, productSlot })
+      console.log(`typesof  : `, typeof (quantity))
 
-      // Check if the inventory for the product exists within the date range
+      // checking the inventories
+      const allInventories = await InventoryModel.find({ productId: productId });
+
       const inventory = await InventoryModel.findOne({
         productId,
         startdate: quoteDate,
-        enddate: endDate
+        enddate: endDate,
       }).session(session);
-      console.log(` inven : `, inventory)
+
+      console.log("inventories: ", allInventories)
+
+      const overlappingInventory = allInventories.filter(item => {
+        console.log(`parseDate(item.startdate): `, parseDate(item.startdate))
+        console.log(`parseDate(item.enddate): `, parseDate(item.enddate))
+        const inventoryStartDate = parseDate(item.startdate);
+        const inventoryEndDate = parseDate(item.enddate);
+        return inventoryStartDate <= parseDate(endDate) && inventoryEndDate >= parseDate(quoteDate);
+      });
+      console.log(" ",)
+      console.log("overlappingInventory: ", overlappingInventory)
+
+      const totalReserved = overlappingInventory.reduce(
+        (sum, entry) => sum + (entry.reservedQty || 0),
+        0
+      );
+
+      const findProd = await ProductManagementModel.findById(productId)
+        .select('ProductStock ProductPrice') // Correct way to select the field
+        .lean() // Convert the result to a plain JavaScript object
+        .session(session); // Make sure to associate with the session if you're using transactions
+
+      // If there are no overlapping reservations, use the product stock directly
+      let availableStock = findProd.ProductStock;
+
+      // If there are overlapping reservations, subtract the reserved quantity from the product stock
+      if (overlappingInventory.length > 0) {
+        availableStock = Math.max(findProd.ProductStock - totalReserved, 0); // Ensure no negative stock
+      }
+
+      // if (availableStock <= 0) {
+      //   throw new Error(`Insufficient stock: Available stock is 0 or less for product ${productId}`);
+      // }
+
+      console.log("availableStock: ", availableStock)
+
+
+      // throw new Error("test 1")
+
 
       if (!isNewProduct && !inventory) {
         console.log(`Inventory doesn't exist`)
@@ -312,16 +353,17 @@ class order {
       }
       // console.log("found order: ", order)
       // console.log("slots[0].products: ", order.slots[0].products)
-      console.log({ quantity, inventory })
-
-      const findProd = await ProductManagementModel.findById(productId)
-        .select('ProductStock ProductPrice') // Correct way to select the field
-        .lean() // Convert the result to a plain JavaScript object
-        .session(session); // Make sure to associate with the session if you're using transactions
+      // console.log({ quantity, inventory })
 
 
       // // Step 4: Update the product's quantity and total in the order's slots[0].products[]
       const slot = order.slots[0]; // Assuming you're working with the first slot
+
+      const orderProduct = order.slots[0].products.find(prod => prod.productId.toString() === productId.toString());
+      const oldQuantity = orderProduct.quantity;  // Get the old quantity from the order
+      const quantityDifference = quantity - oldQuantity; // Difference between new and old quantity
+
+
       let product;
       if (!isNewProduct) {
         product = slot.products.find(prod => prod.productId.toString() === productId);
@@ -372,21 +414,28 @@ class order {
           // Save the newly created inventory record
           await newInventory.save({ session });
         } else {
-          inventory.reservedQty = Number(quantity);
-          inventory.availableQty = Number(findProd.ProductStock - Number(quantity));
-          console.log("inventory.reservedQty: ", inventory.reservedQty)
-          await inventory.save({ session });
-          const updatedInventory = await InventoryModel.findOne({
-            productId,
-            startdate: quoteDate,
-            enddate: endDate
-          }).session(session);
-          console.log("after updating inven: ", updatedInventory)
-        }
+          if (availableStock >= quantityDifference) {
+            console.log("orderProduct: ", orderProduct)
+            console.log("oldQuantity: ", oldQuantity)
+            console.log("quantityDifference: ", quantityDifference)
 
+            inventory.reservedQty += Number(quantityDifference);
+            inventory.availableQty = Number(findProd.ProductStock - Number(quantityDifference));
+            console.log("after inventory.reservedQty: ", inventory.reservedQty)
+            await inventory.save({ session });
+            const updatedInventory = await InventoryModel.findOne({
+              productId,
+              startdate: quoteDate,
+              enddate: endDate
+            }).session(session);
+            console.log("after updating inven: ", updatedInventory)
+          } else {
+            throw new Error("Cannot update: Avaiable Stock is less than desired quantity")
+          }
+        }
       } else {
         // Handle the case if quantity exceeds available stock (optional)
-        res.status(404).json({ message: "prod doesnt exist" })
+        throw new Error({ message: "Cannot update: Avaiable Stock is less than desired quantity-2" })
       }
 
       // // if (product && quantity <= (inventory.reservedQty + product.quantity)) {
