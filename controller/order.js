@@ -5,8 +5,33 @@ const mongoose = require("mongoose");
 const { parseDate } = require("../utils/dateString");
 const Order = require("../model/order");
 const Quotationmodel = require("../model/quotations");
+const Counter = require("../model/getNextSequence");
 
 class order {
+  async invoiceId(req, res) {
+
+    // const latestCustomer = await Enquirymodel.findOne()
+    //   .sort({ enquiryId: -1 })
+    //   .exec();
+    // const latestEquiry = latestCustomer ? latestCustomer.enquiryId : 0;
+    // const newEquiry = latestEquiry + 1;
+    // const enquiryId = await Counter?.getNextSequence("enquiryId");
+
+
+    const latestOrder = await Order.findOne()
+      .sort({ invoiceId: -1 })
+      .exec();
+    const latestInvoiceId = latestOrder ? latestOrder.invoiceId : 0;
+
+    const latestInvoiceNumber = ('RA0') + await Counter?.getNextSequence("invoiceId");
+
+    console.log("New Invoice ID:", latestInvoiceNumber);
+
+
+    res.status(200).json({ message: latestInvoiceNumber })
+
+
+  }
   async postaddorder(req, res) {
     console.log("post order")
     const {
@@ -121,9 +146,19 @@ class order {
         }
       }
 
+      const latestOrder = await Order.findOne()
+        .sort({ invoiceId: -1 })
+        .exec();
+      const latestInvoiceId = latestOrder ? latestOrder.invoiceId : 0;
+
+      const invoiceId = ('RA0') + await Counter?.getNextSequence("invoiceId");
+
+      console.log("New Invoice ID:", invoiceId);
+
       // Create the order after inventory updates
       const newOrder = new ordermodel({
         quoteId,
+        invoiceId,
         ClientId,
         clientName,
         clientNo,
@@ -716,7 +751,7 @@ class order {
       const updatedProducts = await Promise.all(order.slots[0].products.map(async (product) => {
         // Fetch product data once using ProductManagementModel.find and lean to get a plain object
         const productData = await ProductManagementModel.findById(product.productId)
-          .select('ProductStock')
+          .select('ProductStock ProductPrice')
           .lean(); // Use lean to get a plain JavaScript object
 
         console.log("productData: ", productData); // productData will now be a plain object
@@ -727,6 +762,7 @@ class order {
           return {
             ...product,  // Spread the existing product details
             ProductStock: productData.ProductStock,  // Inject the fetched ProductStock
+            ProductPrice: productData.ProductPrice
           };
         }
 
@@ -1480,7 +1516,7 @@ class order {
       // order.slots[0].products = []
       await order.save({ session });
 
-      throw new Error("just testing")
+      // throw new Error("just testing")
 
       // Commit the transaction if everything is successful
       await session.commitTransaction();

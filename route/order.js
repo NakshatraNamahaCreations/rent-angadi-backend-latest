@@ -29,4 +29,6 @@ router.get(
 // order
 router.post("/cancel-slot", orderController.cancelOrder);
 
+router.get("/invoice", orderController.invoiceId)
+
 module.exports = router;

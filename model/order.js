@@ -54,6 +54,10 @@ const orderSchema = new mongoose.Schema({
     type: String,
     require: true,
   },
+  invoiceId:{
+    type: String,
+    require: true,
+  },
   ClientId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Client",
