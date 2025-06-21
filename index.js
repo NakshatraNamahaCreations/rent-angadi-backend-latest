@@ -18,7 +18,7 @@ mongoose
   .catch((err) => console.log("Database Not connected !!!", err));
 
 //middleware
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
 app.use(cors());
 app.use(morgan("dev"));

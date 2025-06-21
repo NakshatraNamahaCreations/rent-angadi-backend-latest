@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const ProductManagementSchema = new mongoose.Schema({
   ProductName: {
     type: String,
+    required: true
   },
   ProductDesc: {
     type: String,
@@ -16,17 +17,17 @@ const ProductManagementSchema = new mongoose.Schema({
   ProductSKU: {
     type: String,
   },
+
   ProductImg1: {
     type: String,
   },
-
   ProductImg2: {
     type: String,
   },
-
   ProductImg3: {
     type: String,
   },
+
   ProductIcon: {
     type: String,
   },
@@ -38,6 +39,7 @@ const ProductManagementSchema = new mongoose.Schema({
   },
   ProductStock: {
     type: Number,
+    required: true
   },
   StockAvailable: {
     type: Number,
@@ -49,6 +51,7 @@ const ProductManagementSchema = new mongoose.Schema({
   // },
   ProductPrice: {
     type: String,
+    required: true
   },
   offerPrice: {
     type: String,

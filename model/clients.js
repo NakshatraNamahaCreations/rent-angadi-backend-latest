@@ -24,7 +24,7 @@ const ClientSchema = new mongoose.Schema(
     },
     phoneNumber: {
       type: String,
-      required: true,
+      // required: true,
     },
     password: {
       type: String,
@@ -32,7 +32,7 @@ const ClientSchema = new mongoose.Schema(
     },
     address: {
       type: String,
-      require: true,
+      // require: true,
     },
     activeStatus: {
       type: String,

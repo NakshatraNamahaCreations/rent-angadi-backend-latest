@@ -32,6 +32,7 @@ class order {
 
 
   }
+
   async postaddorder(req, res) {
     console.log("post order")
     const {
@@ -332,7 +333,7 @@ class order {
       console.log(`typesof  : `, typeof (quantity))
 
       // checking the inventories
-      const allInventories = await InventoryModel.find({ productId: productId });
+      const allInventories = await InventoryModel.find({ productId: productId }).session(session);
 
       const inventory = await InventoryModel.findOne({
         productId,
@@ -343,13 +344,12 @@ class order {
       console.log("inventories: ", allInventories)
 
       const overlappingInventory = allInventories.filter(item => {
-        console.log(`parseDate(item.startdate): `, parseDate(item.startdate))
-        console.log(`parseDate(item.enddate): `, parseDate(item.enddate))
+        // console.log(`parseDate(item.startdate): `, parseDate(item.startdate))
+        // console.log(`parseDate(item.enddate): `, parseDate(item.enddate))
         const inventoryStartDate = parseDate(item.startdate);
         const inventoryEndDate = parseDate(item.enddate);
         return inventoryStartDate <= parseDate(endDate) && inventoryEndDate >= parseDate(quoteDate);
       });
-      console.log(" ",)
       console.log("overlappingInventory: ", overlappingInventory)
 
       const totalReserved = overlappingInventory.reduce(
@@ -395,8 +395,10 @@ class order {
       const slot = order.slots[0]; // Assuming you're working with the first slot
 
       const orderProduct = order.slots[0].products.find(prod => prod.productId.toString() === productId.toString());
-      const oldQuantity = orderProduct.quantity;  // Get the old quantity from the order
+      const oldQuantity = orderProduct?.quantity;  // Get the old quantity from the order
       const quantityDifference = quantity - oldQuantity; // Difference between new and old quantity
+      const safeQuantityDifference = isNaN(quantityDifference) ? 0 : quantityDifference;
+      console.log({ orderProduct, oldQuantity, quantityDifference, safeQuantityDifference })
 
 
       let product;
@@ -410,8 +412,8 @@ class order {
         }
 
         // Update the product quantity
-        product.quantity = quantity;
-        product.total = quantity * findProd.ProductPrice
+        product.quantity = Number(quantity);
+        product.total = Number(quantity) * findProd.ProductPrice
 
         // Replace the updated product back into the order's slot products array
         slot.products = slot.products.map(prod =>
@@ -427,7 +429,7 @@ class order {
           productName, // Product name fetched from findProd
           quantity,
           // price: Number(unitPrice), // Price fetched from findProd
-          total: quantity * findProd.ProductPrice, // Initial total
+          total: Number(quantity) * findProd.ProductPrice, // Initial total
           productQuoteDate, productEndDate, productSlot
         };
         slot.products.push(product);
@@ -449,13 +451,20 @@ class order {
           // Save the newly created inventory record
           await newInventory.save({ session });
         } else {
-          if (availableStock >= quantityDifference) {
-            console.log("orderProduct: ", orderProduct)
-            console.log("oldQuantity: ", oldQuantity)
-            console.log("quantityDifference: ", quantityDifference)
+          if (availableStock >= safeQuantityDifference) {
+            // inventory.reservedQty += Number(quantityDifference);
+            // inventory.availableQty = Number(findProd.ProductStock - quantity);
 
-            inventory.reservedQty += Number(quantityDifference);
-            inventory.availableQty = Number(findProd.ProductStock - Number(quantityDifference));
+            // if safe diff is 0 then product is new
+            if (isNewProduct) {
+              // If safeQuantityDifference is 0, use quantity
+              inventory.reservedQty += Number(quantity);
+              inventory.availableQty = Number(findProd.ProductStock - quantity); // Use quantity to update availableQty
+            } else {
+              // If safeQuantityDifference is not 0, use quantityDifference
+              inventory.reservedQty += Number(quantityDifference);
+              inventory.availableQty = Number(findProd.ProductStock - quantityDifference); // Update based on quantityDifference
+            }
             console.log("after inventory.reservedQty: ", inventory.reservedQty)
             await inventory.save({ session });
             const updatedInventory = await InventoryModel.findOne({

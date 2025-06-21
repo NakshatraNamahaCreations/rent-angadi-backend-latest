@@ -178,6 +178,7 @@ class ProductManagement {
   //     return res.status(500).json({ success: false, message: "Server error" });
   //   }
   // }
+
   async editProductManagement(req, res) {
     let id = req.params.id;
     let {
@@ -249,7 +250,6 @@ class ProductManagement {
       return res.status(500).json({ success: false, message: "Server error" });
     }
   }
-
 
   // async updateProducts(req, res) {
   //   try {
@@ -409,6 +409,7 @@ class ProductManagement {
   //     return res.status(500).json({ error: "Unable to update the product" });
   //   }
   // }
+  
   async updateProducts(req, res) {
     try {
       const ProductId = req.params.id;
@@ -550,6 +551,7 @@ class ProductManagement {
         .json({ message: "Internal server error.", error: error.message });
     }
   }
+
   async getProductById(req, res) {
     const { id } = req.params;
 
@@ -576,7 +578,6 @@ class ProductManagement {
       });
     }
   }
-
 
   async getProductforInventory(req, res) {
     try {
@@ -611,6 +612,7 @@ class ProductManagement {
         .json({ message: "Internal server error.", error: error.message });
     }
   }
+
   async getaggregetinventory(req, res) {
     try {
       let Data = await ProductManagementModel.aggregate([
