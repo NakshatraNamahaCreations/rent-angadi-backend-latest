@@ -760,7 +760,7 @@ class order {
       const updatedProducts = await Promise.all(order.slots[0].products.map(async (product) => {
         // Fetch product data once using ProductManagementModel.find and lean to get a plain object
         const productData = await ProductManagementModel.findById(product.productId)
-          .select('ProductStock ProductPrice')
+          .select('ProductStock ProductPrice ProductIcon')
           .lean(); // Use lean to get a plain JavaScript object
 
         console.log("productData: ", productData); // productData will now be a plain object
@@ -771,7 +771,8 @@ class order {
           return {
             ...product,  // Spread the existing product details
             ProductStock: productData.ProductStock,  // Inject the fetched ProductStock
-            ProductPrice: productData.ProductPrice
+            ProductPrice: productData.ProductPrice,
+            ProductIcon: productData.ProductIcon
           };
         }
 

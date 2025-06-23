@@ -9,8 +9,8 @@ const puppeteer = require("puppeteer");
 
 mongoose
   .connect("mongodb+srv://rentangadi:rentangadi@cluster0.uycn7mi.mongodb.net/", {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
+    // useNewUrlParser: true,
+    // useUnifiedTopology: true,
   })
   .then(() =>
     console.log("=============MongoDb Database connected successfuly")
@@ -40,6 +40,7 @@ const CCAvenue = require("./route/CCAvenue");
 const enquiry = require("./route/enquiry");
 const adminLogin = require("./route/Auth/adminLogin");
 const payment = require('./route/payment')
+const report = require('./route/report')
 
 app.use("/api", payu);
 app.use("/api", adminLogin);
@@ -56,8 +57,14 @@ app.use("/api/inventory", inventory);
 app.use("/api/payment", CCAvenue);
 app.use("/api/Enquiry", enquiry);
 app.use("/api/payment", payment);
+app.use("/api/report", report);
 
 const PORT = process.env.PORT || 8000;
+
+app.get("/", (req, res) => {
+  res.status(200).json({ message: "Welcome to Rent Angadi" });
+});
+
 app.listen(PORT, () => {
   console.log("Server is running on", PORT);
 });

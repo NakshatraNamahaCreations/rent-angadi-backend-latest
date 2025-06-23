@@ -28,7 +28,7 @@ exports.createPayment = async (req, res) => {
 // Get all payments
 exports.getAllPayments = async (req, res) => {
   try {
-    const payments = await Payment.find().populate("quotationId");
+    const payments = await Payment.find().populate("quotationId").sort({ createdAt: -1 });
     res.status(200).json(payments);
   } catch (error) {
     res.status(500).json({ message: "Error fetching payments", error: error.message });
