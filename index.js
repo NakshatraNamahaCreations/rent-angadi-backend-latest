@@ -6,6 +6,7 @@ const morgan = require("morgan");
 require("dotenv").config();
 const cookieParser = require("cookie-parser");
 const puppeteer = require("puppeteer");
+const path = require("path");
 
 mongoose
   .connect("mongodb+srv://rentangadi:rentangadi@cluster0.uycn7mi.mongodb.net/", {

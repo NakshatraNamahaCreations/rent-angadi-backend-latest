@@ -57,7 +57,7 @@ app.use("/api/payment", CCAvenue);
 app.use("/api/Enquiry", enquiry);
 app.use("/api/payment", payment);
 
-const PORT = process.env.PORTBACKUP || 8000;
+const PORT = process.env.PORTBACKUP || 7000;
 app.listen(PORT, () => {
   console.log("Server is running on", PORT);
 });
