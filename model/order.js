@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-
+const { parse } = require("date-fns");
 
 const SlotSchema = new mongoose.Schema({
   // slotName: {
@@ -10,9 +10,15 @@ const SlotSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  quoteDateObj: {
+    type: Date, // New Date field for easier filtering
+  },
   endDate: {
     type: String,
     required: true,
+  },
+  endDateObj: {
+    type: Date,
   },
   products: [
     {
@@ -160,6 +166,55 @@ const orderSchema = new mongoose.Schema({
     timestamps: true,
   }
 );
+
+orderSchema.pre("save", function (next) {
+  if (this.slots && this.slots.length > 0) {
+    this.slots = this.slots.map((slot) => {
+      const updatedSlot = slot.toObject ? slot.toObject() : slot;
+
+      // Convert quoteDate
+      if (updatedSlot.quoteDate && !updatedSlot.quoteDateObj) {
+        try {
+          updatedSlot.quoteDateObj = parse(updatedSlot.quoteDate, "dd-MM-yyyy", new Date());
+        } catch (e) {
+          console.error("Invalid quoteDate:", updatedSlot.quoteDate);
+        }
+      }
+
+      // Convert endDate
+      if (updatedSlot.endDate && !updatedSlot.endDateObj) {
+        try {
+          updatedSlot.endDateObj = parse(updatedSlot.endDate, "dd-MM-yyyy", new Date());
+        } catch (e) {
+          console.error("Invalid endDate:", updatedSlot.endDate);
+        }
+      }
+
+      return updatedSlot;
+    });
+  }
+  next();
+});
+
+
+// orderSchema.pre("save", function (next) {
+//   if (this.slots && this.slots.length > 0) {
+//     this.slots = this.slots.map((slot) => {
+//       if (slot.quoteDate && !slot.quoteDateObj) {
+//         try {
+//           const parsed = parse(slot.quoteDate, "dd-MM-yyyy", new Date());
+//           return { ...slot.toObject(), quoteDateObj: parsed };
+//         } catch (e) {
+//           console.error("Invalid quoteDate:", slot.quoteDate);
+//           return slot;
+//         }
+//       }
+//       return slot;
+//     });
+//   }
+//   next();
+// });
+
 
 const Order = mongoose.model("Order", orderSchema);
 module.exports = Order;

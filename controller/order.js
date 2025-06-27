@@ -6,6 +6,7 @@ const { parseDate } = require("../utils/dateString");
 const Order = require("../model/order");
 const Quotationmodel = require("../model/quotations");
 const Counter = require("../model/getNextSequence");
+const payment = require("../model/payment");
 
 class order {
   async invoiceId(req, res) {
@@ -756,6 +757,8 @@ class order {
         return res.status(404).json({ message: 'Order not found.' });
       }
 
+      const payments = await payment.find({ quotationId: order.quoteId }).lean();
+
       // if (order?.slots && order.slots[0]?.products) {
       const updatedProducts = await Promise.all(order.slots[0].products.map(async (product) => {
         // Fetch product data once using ProductManagementModel.find and lean to get a plain object
@@ -793,6 +796,7 @@ class order {
       // Update the order with the updated slot
       const updatedOrder = {
         ...order,
+        payments,
         slots: [updatedSlot],  // Wrap the updated slot in an array again
       };
 
@@ -1550,6 +1554,7 @@ class order {
     }
   }
 
+  
 
   // async cancelOrder(req, res) {
   //   const { orderId } = req.body;

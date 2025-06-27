@@ -15,6 +15,7 @@ const generateSKU = () => {
 
 class ProductManagement {
   async addProductManagement(req, res) {
+    console.log("inside addProductManagement");
     try {
       let {
         ProductName,
@@ -29,6 +30,7 @@ class ProductManagement {
         qty,
         minqty,
         ProductStock,
+        repairCount,
         activeStatus,
         Material,
         ProductSize,
@@ -44,6 +46,30 @@ class ProductManagement {
       let file2 = req.files[2]?.filename;
       let file3 = req.files[3]?.filename;
 
+      console.log({
+        ProductName,
+        ProductCategory,
+        ProductSubcategory,
+        ProductDesc,
+        ProductFeature,
+        ProductPrice,
+        offerPrice,
+        ProductGst,
+        Productdetails,
+        qty,
+        minqty,
+        ProductStock,
+        repairCount,
+        activeStatus,
+        Material,
+        ProductSize,
+        Color,
+        seater,
+        ProductImg1,
+        ProductImg2,
+        ProductImg3,
+        // ProductSKU,
+      })
       console.log(ProductName,
         ProductCategory,
         ProductSubcategory,
@@ -56,11 +82,13 @@ class ProductManagement {
         qty,
         minqty,
         ProductStock,
+        repairCount,
         activeStatus,
         Material,
         ProductSize,
         Color,
         seater, file, "etst")
+      const newProductStock = qty - (repairCount ?? 0);
       // const product = await ProductManagementModel.findOne()
       //   .sort({ ProductSKU: -1 })
       //   .exec();
@@ -85,7 +113,8 @@ class ProductManagement {
         ProductPrice,
         ProductGst,
         Productdetails,
-        ProductStock,
+        ProductStock: newProductStock,
+        repairCount,
         StockAvailable: ProductStock,
         qty,
         Material,
@@ -109,6 +138,7 @@ class ProductManagement {
       });
 
     } catch (error) {
+      console.log("error: ", error);
       return res.status(500).json({ error: "something went wrong" });
     }
   }
@@ -180,8 +210,8 @@ class ProductManagement {
   // }
 
   async editProductManagement(req, res) {
-    let id = req.params.id;
-    let {
+    const id = req.params.id;
+    const {
       ProductName,
       ProductCategory,
       ProductSubcategory,
@@ -193,6 +223,7 @@ class ProductManagement {
       qty,
       maxGty,
       ProductStock,
+      repairCount,
       activeStatus,
       Material,
       ProductSize,
@@ -232,6 +263,56 @@ class ProductManagement {
     }
 
     try {
+      const findProduct = await ProductManagementModel.findById(id);
+      if (!findProduct) {
+        return res.status(404).json({ error: "No such record found" });
+      }
+
+      // basic idea: total is alaways "productstock + repair"
+      let newProductStock
+      let newRepairCount = Number(repairCount) ?? 0;
+
+      newProductStock = qty - newRepairCount;
+
+
+      // ✅ Handle single image update
+      const updatedFields = {
+        ProductName: ProductName ?? findProduct.ProductName,
+        ProductCategory: ProductCategory ?? findProduct.ProductCategory,
+        ProductSubcategory:
+          ProductSubcategory ?? findProduct.ProductSubcategory,
+        ProductFeature: ProductFeature ?? findProduct.ProductFeature,
+        ProductPrice: ProductPrice ?? findProduct.ProductPrice,
+        // offerPrice: offerPrice ?? findProduct.offerPrice,
+        qty: qty ?? findProduct.qty,
+        ProductStock: newProductStock,
+        repairCount,
+        ProductDesc: ProductDesc ?? findProduct.ProductDesc,
+        Material: Material ?? findProduct.Material,
+        ProductSize: ProductSize ?? findProduct.ProductSize,
+        Color: Color ?? findProduct.Color,
+        seater: seater ?? findProduct.seater,
+
+        // ✅ Keep the old image if no new image is uploaded
+        ProductIcon: req.file ? req.file.filename : findProduct.ProductIcon,
+      };
+
+      Object.keys(updatedFields).forEach(
+        (key) => updatedFields[key] === undefined && delete updatedFields[key]
+      );
+
+      // ✅ Update product in the database
+      const updatedProduct = await ProductManagementModel.findByIdAndUpdate(
+        id,
+        { $set: updatedFields },
+        { new: true }
+      );
+
+      return res.json({
+        message: "Product updated successfully",
+        data: updatedProduct,
+      });
+
       let data = await ProductManagementModel.findOneAndUpdate(
         { _id: id },
         updateObj,
@@ -409,7 +490,7 @@ class ProductManagement {
   //     return res.status(500).json({ error: "Unable to update the product" });
   //   }
   // }
-  
+
   async updateProducts(req, res) {
     try {
       const ProductId = req.params.id;
@@ -420,6 +501,7 @@ class ProductManagement {
         ProductDesc,
         ProductFeature,
         ProductPrice,
+        repairCount,
         offerPrice,
         qty,
         ProductStock,
@@ -434,6 +516,24 @@ class ProductManagement {
       if (!findProduct) {
         return res.status(404).json({ error: "No such record found" });
       }
+      // basic idea: total is alaways "productstock + repair"
+      let newProductStock = findProduct.ProductStock;
+      let newRepair = findProduct.repair || 0;
+
+      if (ProductStock !== undefined && repair !== undefined) {
+        newProductStock = ProductStock - repair; // Update new productStock
+        newRepair = repair;
+      }
+      // If only ProductStock is provided
+      else if (ProductStock !== undefined) {
+        newProductStock = ProductStock - (findProduct.repair || 0);
+      }
+      // If only repair count is provided
+      else if (repair !== undefined) {
+        newProductStock = findProduct.ProductStock - repair;
+        newRepair = repair;
+      }
+
 
       // ✅ Handle single image update
       const updatedFields = {
@@ -445,7 +545,8 @@ class ProductManagement {
         ProductPrice: ProductPrice ?? findProduct.ProductPrice,
         offerPrice: offerPrice ?? findProduct.offerPrice,
         qty: qty ?? findProduct.qty,
-        ProductStock: ProductStock ?? findProduct.ProductStock,
+        ProductStock: newProductStock,
+        repair: newRepair,
         ProductDesc: ProductDesc ?? findProduct.ProductDesc,
         Material: Material ?? findProduct.Material,
         ProductSize: ProductSize ?? findProduct.ProductSize,

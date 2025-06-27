@@ -1,6 +1,9 @@
 const Clientmodel = require("../model/clients");
 const NodeCache = require("node-cache");
 const cache = new NodeCache({ stdTTL: 100, checkperiod: 120 });
+const { parse } = require('date-fns');
+const Order = require("../model/order");
+const { default: mongoose } = require("mongoose");
 
 class Clients {
   async createClients(req, res) {
@@ -14,20 +17,24 @@ class Clients {
       executives,
     } = req.body;
 
-    console.log(clientName,
+    console.log({
+      clientName,
       email,
       phoneNumber,
       // password,
       address,
       activeStatus,
-      executives)
+      executives
+    })
 
     try {
       // Check if client with the same phone number already exists
-      const existingClient = await Clientmodel.findOne({ phoneNumber });
-      if (existingClient) {
-        return res.status(401).json({ error: "This number already exists!" });
-      }
+      // console.log("phone: ", phoneNumber)
+      // const existingClient = await Clientmodel.findOne({ phoneNumber });
+      // console.log("existingClient: ", existingClient)
+      // if (existingClient) {
+      //   return res.status(401).json({ error: "This number already exists!" });
+      // }
 
 
       let parsedExecutives = [];
@@ -127,8 +134,6 @@ class Clients {
     }
   }
 
-
-
   async editClients(req, res) {
     const ClientId = req.params.id;
     const {
@@ -174,6 +179,7 @@ class Clients {
       return res.status(500).json({ error: "Unable to update the Client" });
     }
   }
+
   // async editClients(req, res) {
   //   const ClientId = req.params.id;
   //   const {
@@ -219,7 +225,7 @@ class Clients {
   //   }
   // }
 
-  async getClients(req, res) {
+  async getallClients(req, res) {
     let cachedSubcategories = cache.get("allclients");
     if (cachedSubcategories) {
       return res.json({ Client: cachedSubcategories });
@@ -228,6 +234,7 @@ class Clients {
         let Client = await Clientmodel.find({}).sort({ createdAt: -1 });
         if (Client) {
           cache.set("allclients", Client);
+          console.log(Client);
           return res.json({ Client: Client });
         } else {
           return res.status(404).json({ error: "No subcategories found" });
@@ -237,6 +244,65 @@ class Clients {
           .status(500)
           .json({ error: "Failed to retrieve subcategories" });
       }
+    }
+  }
+
+  async getClientsGrandTotal(req, res) {
+    console.log("inside getClientsGrandTotal");
+    const { clientIds, startDate, endDate } = req.body;
+    console.log("Selected Clients:", clientIds, "startDate: ", startDate, "endDate: ", endDate);
+
+    try {
+      // const startdate = parse(startDate, "dd-MM-yyyy", new Date());
+      // const enddate = parse(endDate, "dd-MM-yyyy", new Date());
+      // const startdate = startDate
+      // const enddate = endDate
+      // const clientMap=clientIds.map(id => new mongoose.Types.ObjectId(id)) 
+      // console.log("map: ", clientMap)
+
+      const result = await Order.aggregate([
+        {
+          $match: {
+            ClientId: { $in: clientIds.map(id => new mongoose.Types.ObjectId(id)) },
+            slots: {
+              $elemMatch: {
+                quoteDateObj: { $gte: new Date(startDate) },
+                endDateObj: { $lte: new Date(endDate) }
+              }
+            }
+          }
+        },
+        {
+          $group: {
+            _id: "$ClientId",
+            totalGrandTotal: { $sum: "$GrandTotal" }
+          }
+        },
+        {
+          $lookup: {
+            from: "clients",
+            localField: "_id",
+            foreignField: "_id",
+            as: "clientInfo"
+          }
+        },
+        { $unwind: "$clientInfo" },
+        {
+          $project: {
+            clientName: "$clientInfo.ClientName",
+            totalGrandTotal: 1
+          }
+        }
+      ]);
+
+
+
+      console.log("result: ", result)
+
+      return res.json(result);
+    } catch (error) {
+      console.error("Error fetching and processing orders:", error);
+      return res.status(500).json({ error: "Failed to fetch client totals" });
     }
   }
 

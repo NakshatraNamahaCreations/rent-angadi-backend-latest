@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const PaymentSchema = new mongoose.Schema(
   {
     quotationId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: "Quotation",
       required: true,
     },

@@ -17,7 +17,6 @@ const ProductManagementSchema = new mongoose.Schema({
   ProductSKU: {
     type: String,
   },
-
   ProductImg1: {
     type: String,
   },
@@ -27,7 +26,6 @@ const ProductManagementSchema = new mongoose.Schema({
   ProductImg3: {
     type: String,
   },
-
   ProductIcon: {
     type: String,
   },
@@ -45,6 +43,10 @@ const ProductManagementSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  repairCount: {
+    type: Number,
+    default: 0,
+  },
   // StockSold: {
   //   type: Number,
   //   default: 0, 
@@ -59,7 +61,6 @@ const ProductManagementSchema = new mongoose.Schema({
   ProductGst: {
     type: String,
   },
-
   Productdetails: {
     type: String,
   },
@@ -75,10 +76,9 @@ const ProductManagementSchema = new mongoose.Schema({
   Color: {
     type: String,
   },
-
   qty: {
-    type: String,
-    default: 1,
+    type: Number,
+    default: 0,
   },
   minqty: {
     type: String,
