@@ -13,12 +13,10 @@ const RefurbishmentSchemaData = new mongoose.Schema({
     }
   ],
   orderId: { type: String, required: true },
-  shippingAddress: { type: String, required: true },
-  floorManager: { type: String, required: true },
+  // shippingAddress: { type: String, required: true },
+  // floorManager: { type: String, required: true },
   status: { type: String, required: true },
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
-});
+}, { timestamps: true });
 
 const RefurbishmentData = mongoose.model("RefurbishmentData", RefurbishmentSchemaData);
 module.exports = RefurbishmentData;

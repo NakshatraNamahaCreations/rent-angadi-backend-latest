@@ -4,10 +4,10 @@ const mongoose = require("mongoose")
 // Create a new refurbishment record with multiple products
 exports.createRefurbishment = async (req, res) => {
   try {
-    const { orderId, products, shippingAddress, floorManager, status } = req.body;
+    const { orderId, products, status } = req.body;
 
     // Validate required fields
-    if (!products || !shippingAddress || !floorManager || !status) {
+    if (!products || !status) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
@@ -24,8 +24,8 @@ exports.createRefurbishment = async (req, res) => {
 
     const newRefurbishment = new RefurbishmentData({
       products: formattedProducts,
-      shippingAddress,
-      floorManager,
+      // shippingAddress,
+      // floorManager,
       status, // Add status field
       orderId
     });
