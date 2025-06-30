@@ -45,6 +45,7 @@ class order {
       executivename,
       Address,
       GrandTotal,
+      refurbishmentAmount,
       paymentStatus,
       orderStatus,
       labourecharge,
@@ -168,6 +169,8 @@ class order {
         slots,
         Address,
         GrandTotal,
+        roundOff: Math.round(GrandTotal),
+        refurbishmentAmount,
         paymentStatus,
         orderStatus,
         labourecharge,
@@ -1554,7 +1557,7 @@ class order {
     }
   }
 
-  
+
 
   // async cancelOrder(req, res) {
   //   const { orderId } = req.body;

@@ -60,7 +60,7 @@ const orderSchema = new mongoose.Schema({
     type: String,
     require: true,
   },
-  invoiceId:{
+  invoiceId: {
     type: String,
     require: true,
   },
@@ -123,6 +123,14 @@ const orderSchema = new mongoose.Schema({
   GrandTotal: {
     type: Number,
     required: true,
+  },
+  roundOff: {
+    type: Number,
+    required: true,
+  },
+  refurbishmentAmount: {
+    type: Number,
+    default: 0
   },
   paymentStatus: {
     type: String,

@@ -8,8 +8,9 @@ const cookieParser = require("cookie-parser");
 const puppeteer = require("puppeteer");
 const path = require("path");
 
+
 mongoose
-  .connect("mongodb+srv://rentangadi:rentangadi@cluster0.uycn7mi.mongodb.net/", {
+  .connect(process.env.MONGO_URI, {
     // useNewUrlParser: true,
     // useUnifiedTopology: true,
   })
