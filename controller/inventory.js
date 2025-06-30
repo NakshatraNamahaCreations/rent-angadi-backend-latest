@@ -102,7 +102,7 @@ class Inventory {
 
     console.log("Start Date:", startDate);
     console.log("End Date:", endDate);
-    console.log("products:", products);
+    console.log("products:", products.slice(0, 5), "length: ", products.length);
 
     try {
       if (!startDate || !endDate || !products) {

@@ -332,6 +332,57 @@ class ProductManagement {
     }
   }
 
+  async editDamagedProductManagement(req, res) {
+    const { productId, repairCount, lostCount, repairDescription } = req.body;
+
+    console.log(`repairCount ${repairCount}`);
+    console.log(`lostCount ${lostCount}`);
+    console.log(`productId ${productId}`);
+
+    // start trasnaction
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+
+    if (!productId || repairCount == null || lostCount == null) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    try {
+
+      const updatedProduct = await ProductManagementModel.findByIdAndUpdate(
+        { _id: productId },
+        { repairCount, lostCount, repairDescription },
+        { new: true }
+      ).session(session);
+
+      if (!updatedProduct) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      updatedProduct.ProductStock = Number(updatedProduct.qty) - (Number(updatedProduct.repairCount) + Number(updatedProduct.lostCount));
+
+      const updatedProductStock = await ProductManagementModel.findByIdAndUpdate(
+        { _id: productId },
+        { ProductStock: updatedProduct.ProductStock },
+        { new: true }
+      ).session(session);
+
+      await session.commitTransaction();
+
+      return res.status(200).json({
+        message: "Product updated successfully",
+        data: updatedProduct,
+      });
+    }
+    catch (error) {
+      await session.abortTransaction();
+      return res.status(500).json({ error: "Failed to update product" });
+    } finally {
+      session.endSession();
+    }
+  }
+
   // async updateProducts(req, res) {
   //   try {
   //     const ProductId = req.params.id;

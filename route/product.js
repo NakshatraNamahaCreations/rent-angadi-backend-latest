@@ -36,6 +36,8 @@ router.put(
   ProductManagemntController.editProductManagement
 );
 
+router.post("/damaged-products", ProductManagemntController.editDamagedProductManagement);
+
 router.delete(
   "/deleteProducts/:id",
   ProductManagemntController.postdeleteProductManagement

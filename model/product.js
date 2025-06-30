@@ -47,6 +47,13 @@ const ProductManagementSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  lostCount: {
+    type: Number,
+    default: 0,
+  },
+  repairDescription: {
+    type: String,
+  },
   // StockSold: {
   //   type: Number,
   //   default: 0, 

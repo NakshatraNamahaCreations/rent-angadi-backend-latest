@@ -561,6 +561,29 @@ class order {
     }
   }
 
+  async updateOrderFields(req, res) {
+    const { orderId, roundOff } = req.body;
+
+    if (!roundOff || isNaN(roundOff)) {
+      return res.status(400).json({
+        message: "Round off is required and should be a number",
+      });
+    }
+
+    const updatedOrder = await Order.findByIdAndUpdate(
+      orderId,
+      { roundOff },
+      { new: true } // Return the updated document
+    );
+
+
+    res.status(200).json({
+      message: "Order updated successfully.",
+      updatedOrder,
+    });
+
+  }
+
   // // Fetch the current available stock of the product
   // const productData = await ProductManagementModel.findById(productId).select('ProductStock').lean().session(session);
   // if (!productData) {
