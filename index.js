@@ -43,9 +43,11 @@ const enquiry = require("./route/enquiry");
 const adminLogin = require("./route/Auth/adminLogin");
 const payment = require('./route/payment')
 const report = require('./route/report')
+const user = require("./route/user");
 
 app.use("/api", payu);
 app.use("/api", adminLogin);
+app.use("/api/user", user);
 app.use("/api/category", category);
 app.use("/api/subcategory", subcategory);
 app.use("/api/product", product);

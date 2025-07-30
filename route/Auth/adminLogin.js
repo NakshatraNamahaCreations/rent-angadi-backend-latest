@@ -1,14 +1,20 @@
 const express = require("express");
 const router = express.Router();
-const { adminSignUp, adminLogin } = require("../../controller/Auth/adminLogin");
+const { adminSignUp, adminLogin, adminsList, getAdminPermission, updateAdminPermission, getAdminPermissionForSuperAdmin } = require("../../controller/Auth/adminLogin");
 const userMiddleware = require("../../middleware/auth");
 const AdminModel = require("../../model/Auth/adminLogin");
+const { superAdminMiddleware, adminMiddleware } = require("../../middleware/superAdminMiddleware");
 
 // Sign-up route
 router.post("/adminSignUp", adminSignUp);
 
 // Login route
 router.post("/adminLogin", adminLogin);
+
+router.get("/admins-list", superAdminMiddleware, adminsList);
+router.get("/admins/permissions", adminMiddleware, getAdminPermission)
+router.get("/admins/permissions/:id", superAdminMiddleware, getAdminPermissionForSuperAdmin)
+router.put("/admins/permissions/:id", superAdminMiddleware, updateAdminPermission)
 
 // Protected route to get admin details using the token
 router.get("/adminDetails", userMiddleware, async (req, res) => {

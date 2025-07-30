@@ -60,6 +60,10 @@ const orderSchema = new mongoose.Schema({
     type: String,
     require: true,
   },
+  userId: {
+    type: String,
+    required: false,
+  },
   invoiceId: {
     type: String,
     require: true,

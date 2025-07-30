@@ -11,6 +11,10 @@ const EnquirySchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       required: true,
     },
+    userId:{
+      type: String,
+      required: false,
+    },
     endDate: {
       type: String,
       require: true,

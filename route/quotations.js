@@ -8,6 +8,7 @@ router.get(
   QuotationsController.getTotalAndTodayQuotationCount
 );
 router.get("/getallquotations", QuotationsController.allquotations);
+router.get("/my-quotations/:userId", QuotationsController.getMyQuotations);
 router.get("/getquotation/:quotationId", QuotationsController.getQuotationById);
 router.post("/updatefollowup/:id", QuotationsController.updatequotefollowup);
 router.delete("/deletequotation/:id", QuotationsController.postdeletequotation);

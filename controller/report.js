@@ -94,6 +94,30 @@ class report {
 		}
 	}
 
+  async orderReport(req, res) {
+    try {
+      const orders = await Order.find().lean();
+
+      const result = orders.map(order => {
+        const slot = order.slots?.[0];
+        const products = slot?.products?.map(p => ({
+          productName: p.productName || "Unnamed",
+          quantity: p.quantity ?? "N/A"
+        })) || [];
+
+        return {
+          orderId: order._id,
+          products
+        };
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+
 	async productReportByMonth(req, res) {
   try {
     // Extract month and year from request parameters (e.g., "2025-06")
@@ -149,7 +173,7 @@ class report {
 
         // Calculate days including both start and end dates
         const totalDays = Math.ceil((endDate - quoteDate) / (24 * 60 * 60 * 1000)) + 1;
-        const productTotal = quantity * unitPrice * totalDays;
+        const productTotal = quantity * unitPrice * totalDays * (1-order.discount/100);
 
         // Update product totals
         if (!monthWiseReport[monthKey].products.has(product.productName)) {

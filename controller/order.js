@@ -7,6 +7,7 @@ const Order = require("../model/order");
 const Quotationmodel = require("../model/quotations");
 const Counter = require("../model/getNextSequence");
 const payment = require("../model/payment");
+const moment = require("moment");
 
 class order {
   async invoiceId(req, res) {
@@ -38,6 +39,7 @@ class order {
     console.log("post order")
     const {
       quoteId,
+      userId,
       slots,
       ClientId,
       clientName,
@@ -161,6 +163,7 @@ class order {
       // Create the order after inventory updates
       const newOrder = new ordermodel({
         quoteId,
+        userId,
         invoiceId,
         ClientId,
         clientName,
@@ -511,33 +514,49 @@ class order {
       order.slots.forEach(slot => {
         slot.products.forEach((prod, index) => {
           console.log(` ${index} prod: `, prod.total, `typeof `, typeof (prod.total))
-          subtotal += prod.total; // Add each product's total to the subtotal
+          if (prod.productId.toString() === productId.toString()) {
+            console.log("existing prod: ", prod)
+            const rentalDays = moment(productEndDate, "DD-MM-YYYY").diff(moment(productQuoteDate, "DD-MM-YYYY"), "days") + 1;
+            const total = Number(prod.quantity) * Number(findProd.ProductPrice) * rentalDays;
+            prod.total = total;
+            subtotal += total;
+          } else if (isNewProduct && prod.productId.toString() === productId.toString()) {
+            console.log("new prod: ", prod)
+            const rentalDays = moment(productEndDate, "DD-MM-YYYY").diff(moment(productQuoteDate, "DD-MM-YYYY"), "days") + 1;
+            const total = Number(prod.quantity) * Number(findProd.ProductPrice) * rentalDays;
+            prod.total = total;
+            subtotal += total;
+          } else {
+            // Use already-stored total
+            console.log("prod total: ", prod.total)
+            subtotal += Number(prod.total) || 0;
+          }
+
         });
       });
       console.log({ subtotal })
 
-      const { labourecharge, transportcharge, discount, GST, roundOff, GrandTotal } = order
-      subtotal += Number(labourecharge || 0) + Number(transportcharge || 0);
-      console.log({ subtotal })
-
-      // Apply discount
+      const { labourecharge, transportcharge, discount, GST, GrandTotal, refurbishmentAmount } = order
       const discountAmt = subtotal * (Number(discount || 0) / 100);
-      const afterDiscount = subtotal - discountAmt;
+      const totalBeforeCharges = subtotal - discountAmt;
+      const totalAfterCharges = totalBeforeCharges + Number(labourecharge || 0) + Number(transportcharge || 0) + Number(refurbishmentAmount || 0);
 
       // Calculate GST
-      const gstAmt = afterDiscount * (Number(GST || 0) / 100);
+      const gstAmt = totalAfterCharges * (Number(GST || 0) / 100);
 
-      // Calculate the final Grand Total
-      const grandTotal = Math.round(afterDiscount + gstAmt + Number(roundOff || 0));
-      console.log({ discountAmt, afterDiscount, gstAmt })
+      // Final Grand Total
+      const grandTotal = Math.round(totalAfterCharges + gstAmt);
+
+      console.log({ discountAmt, gstAmt })
 
       // Step 9: Update the order's GrandTotal
       order.GrandTotal = grandTotal;
+      order.roundOff = grandTotal;
 
       // Save the updated order once at the end
       await order.save({ session });
 
-      console.log({ GrandTotal, labourecharge, transportcharge, discount, GST, roundOff })
+      console.log({ subtotal, totalBeforeCharges, discountAmt, totalAfterCharges, gstAmt, grandTotal, labourecharge, transportcharge, discount, GST })
 
 
       // Commit the transaction if everything is successful
@@ -766,6 +785,21 @@ class order {
     }
   }
 
+  async getMyOrders(req, res) {
+    const { userId } = req.params;
+    try {
+      let data = await ordermodel.find({ userId }).sort({ _id: -1 });
+      const total = await ordermodel.countDocuments({ userId });
+      if (data) {
+        return res.json({ total, orderData: data });
+      } else {
+        return res.status(404).json({ error: "No orders found" });
+      }
+    } catch (error) {
+      return res.status(500).json({ error: "Failed to retrieve orders" });
+    }
+  }
+
   async getOrderById(req, res) {
     const { id } = req.params; // Get the order ID from the route params
     console.log("id: ", id)
@@ -892,21 +926,23 @@ class order {
       });
 
       // Apply discount, transport, and other charges
-      const { labourecharge, transportcharge, discount, GST, roundOff } = order;
-      subtotal += Number(labourecharge || 0) + Number(transportcharge || 0);
+      const { labourecharge, transportcharge, discount, GST, refurbishmentAmount } = order;
+      // subtotal += Number(labourecharge || 0) + Number(transportcharge || 0);
 
       // Apply discount
       const discountAmt = subtotal * (Number(discount || 0) / 100);
-      const afterDiscount = subtotal - discountAmt;
+      const totalBeforeCharges = subtotal - discountAmt;
+      const totalAfterCharges = totalBeforeCharges + Number(labourecharge || 0) + Number(transportcharge || 0) + Number(refurbishmentAmount || 0);
 
       // Calculate GST
-      const gstAmt = afterDiscount * (Number(GST || 0) / 100);
+      const gstAmt = totalAfterCharges * (Number(GST || 0) / 100);
 
       // Final Grand Total
-      const grandTotal = Math.round(afterDiscount + gstAmt + Number(roundOff || 0));
+      const grandTotal = Math.round(totalAfterCharges + gstAmt);
 
       // Step 5: Update the GrandTotal in the order
       order.GrandTotal = grandTotal;
+      order.roundOff = grandTotal;
 
       // Save the updated order
       await order.save({ session });

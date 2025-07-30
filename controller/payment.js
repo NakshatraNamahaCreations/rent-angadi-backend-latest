@@ -1,4 +1,5 @@
 const Payment = require("../model/payment");
+const Quotationmodel = require("../model/quotations");
 
 // Controller to create a new payment
 exports.createPayment = async (req, res) => {
@@ -28,10 +29,43 @@ exports.createPayment = async (req, res) => {
 // Get all payments
 exports.getAllPayments = async (req, res) => {
   try {
-    const payments = await Payment.find().sort({ createdAt: -1 }).lean();
-    console.log("payments", payments);
+    // const payments = await Payment.find().sort({ createdAt: -1 }).lean();
+
+    const payments = await Payment.aggregate([
+      {
+        $lookup: {
+          from: "quotations",
+          localField: "quotationId",
+          foreignField: "quoteId",
+          as: "quotation"
+        }
+      },
+      { $unwind: { path: "$quotation", preserveNullAndEmptyArrays: true } },
+      {
+        // $project: {
+        //   _id: 1,
+        //   amount: 1,
+        //   quoteId: 1,
+        //   createdAt: 1,
+        //   companyName: "$quotation.companyName"
+        // }
+        $addFields: {
+          companyName: "$quotation.clientName"
+        },
+      },
+      {
+        $project: {
+          quotation: 0
+        }
+      },
+      { $sort: { createdAt: -1 } }
+    ]);
+
+
+    console.log("payments", payments.slice(0, 3));
     res.status(200).json(payments);
   } catch (error) {
+    console.error("Something went wrong", error);
     res.status(500).json({ message: "Error fetching payments", error: error.message });
   }
 };

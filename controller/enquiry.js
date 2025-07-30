@@ -26,6 +26,7 @@ class Enquiry {
       termsandCondition,
       GST,
       placeaddress,
+      userId,
     } = req.body;
 
     console.log(placeaddress);
@@ -66,6 +67,7 @@ class Enquiry {
         GST,
         status,
         placeaddress,
+        userId,
       });
 
       // Save the new Enquiry to the database

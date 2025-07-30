@@ -153,6 +153,7 @@ class Quotations {
       const {
         enquiryObjectId,
         enquiryId,
+        userId,
         clientId,
         quoteDate,
         endDate,
@@ -166,6 +167,8 @@ class Quotations {
         GrandTotal,
         labourecharge,
         transportcharge,
+        inchargeName,
+        inchargePhone,
         adjustments,
         discount,
         termsandCondition,
@@ -177,6 +180,7 @@ class Quotations {
       console.log({
         enquiryObjectId,
         enquiryId,
+        userId,
         clientId,
         quoteDate,
         endDate,
@@ -190,6 +194,8 @@ class Quotations {
         GrandTotal,
         labourecharge,
         transportcharge,
+        inchargeName,
+        inchargePhone,
         adjustments,
         discount,
         termsandCondition,
@@ -212,6 +218,7 @@ class Quotations {
       // Create the new quotation
       const newQuotation = new Quotationmodel({
         enquiryId,
+        userId,
         clientId,
         quoteId: nextQuoteId,
         clientName,
@@ -224,6 +231,8 @@ class Quotations {
         termsandCondition,
         labourecharge,
         transportcharge,
+        inchargeName,
+        inchargePhone,
         GrandTotal,
         adjustments,
         discount,
@@ -578,6 +587,23 @@ class Quotations {
     } catch (error) {
       console.error("Something went wrong", error);
       return res.status(500).json({ error: "Internal server error" });
+    }
+  }
+
+  async getMyQuotations(req, res) {
+    const { userId } = req.params;    
+
+    try {
+      let data = await Quotationmodel.find({ userId }).sort({ _id: -1 });
+      const total = await Quotationmodel.countDocuments({ userId });
+      // console.log(data,"Data nhi")
+      if (data) {
+        return res.json({ total, orderData: data });
+      } else {
+        return res.status(404).json({ error: "No orders found" });
+      }
+    } catch (error) {
+      return res.status(500).json({ error: "Failed to retrieve orders" });
     }
   }
 

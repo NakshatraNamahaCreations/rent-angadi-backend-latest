@@ -23,6 +23,10 @@ const QuotationSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  userId: {
+    type: String,
+    required: false,
+  },
   enquiryId: {
     type: Number,
     unique: true,
@@ -68,6 +72,14 @@ const QuotationSchema = new mongoose.Schema({
   },
   GST: {
     type: Number,
+  },
+  inchargeName: {
+    type: String,
+    default: "N/A",
+  },
+  inchargePhone: {
+    type: String,
+    default: "N/A",
   },
   GrandTotal: {
     type: Number,
