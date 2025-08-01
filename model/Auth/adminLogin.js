@@ -10,6 +10,9 @@ const adminSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  clientId: {
+    type: mongoose.Types.ObjectId,
+  },
   roles: {
     superAdmin: {
       type: Boolean,
@@ -17,7 +20,7 @@ const adminSchema = new mongoose.Schema({
     },
     admin: {
       type: Boolean,
-      default: true,
+      default: false,
     },
     adminRights: {
       type: Boolean,
@@ -48,6 +51,18 @@ const adminSchema = new mongoose.Schema({
       default: false,
     },
     clients: {
+      type: Boolean,
+      default: false,
+    },
+    executiveManagement: {
+      type: Boolean,
+      default: false,
+    },
+    addNewEnquiry: {
+      type: Boolean,
+      default: false,
+    },
+    myOrders: {
       type: Boolean,
       default: false,
     },

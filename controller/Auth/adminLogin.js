@@ -47,7 +47,7 @@ async function adminLogin(req, res) {
     }
 
     // Generate a token with an expiry of 1 hour
-    const token = jwt.sign({ email }, JWT_SECRET_KEY, { expiresIn: "1h" });
+    const token = jwt.sign({ email, clientId, isClient, isExecutive }, JWT_SECRET_KEY, { expiresIn: "1h" });
 
     res.status(200).json({ success: "Logged in successfully", token, roles: admin.roles });
   } catch (error) {
