@@ -172,7 +172,7 @@ class order {
         slots,
         Address,
         GrandTotal,
-        roundOff: Math.round(GrandTotal),
+        roundOff: 0,
         refurbishmentAmount,
         paymentStatus,
         orderStatus,
@@ -365,14 +365,12 @@ class order {
       );
 
       const findProd = await ProductManagementModel.findById(productId)
-        .select('ProductStock ProductPrice') // Correct way to select the field
-        .lean() // Convert the result to a plain JavaScript object
-        .session(session); // Make sure to associate with the session if you're using transactions
+        .select('ProductStock ProductPrice')
+        .lean()
+        .session(session);
 
-      // If there are no overlapping reservations, use the product stock directly
       let availableStock = findProd.ProductStock;
 
-      // If there are overlapping reservations, subtract the reserved quantity from the product stock
       if (overlappingInventory.length > 0) {
         availableStock = Math.max(findProd.ProductStock - totalReserved, 0); // Ensure no negative stock
       }
@@ -384,109 +382,41 @@ class order {
       console.log("availableStock: ", availableStock)
 
 
-      // throw new Error("test 1")
-
-
-      if (!isNewProduct && !inventory) {
+      if (!inventory) {
         console.log(`Inventory doesn't exist`)
-        // return res.status(400).json({ message: `Inventory doesn't exist` });
         throw new Error(`Inventory doesn't exist`);
-
       }
       // console.log("found order: ", order)
       // console.log("slots[0].products: ", order.slots[0].products)
       // console.log({ quantity, inventory })
 
 
-      // // Step 4: Update the product's quantity and total in the order's slots[0].products[]
+      // Update the product's quantity and total in the order's slots[0].products[]
       const slot = order.slots[0]; // Assuming you're working with the first slot
 
+      // Find the existing product in the order
       const orderProduct = order.slots[0].products.find(prod => prod.productId.toString() === productId.toString());
-      const oldQuantity = orderProduct?.quantity;  // Get the old quantity from the order
-      const quantityDifference = quantity - oldQuantity; // Difference between new and old quantity
-      const safeQuantityDifference = isNaN(quantityDifference) ? 0 : quantityDifference;
-      console.log({ orderProduct, oldQuantity, quantityDifference, safeQuantityDifference })
-
-
-      let product;
-      if (!isNewProduct) {
-        product = slot.products.find(prod => prod.productId.toString() === productId);
-        // Validate quantity and unitPrice before calculating total
-        if (isNaN(quantity)) {
-          console.log(`quantity type: ${typeof quantity}, unitPrice type: ${typeof unitPrice}`);
-          throw new Error(`Invalid quantity or unit price`);
-          // return res.status(400).json({ message: "Invalid quantity or unit price" });
-        }
-
-        // Update the product quantity
-        product.quantity = Number(quantity);
-        product.total = Number(quantity) * findProd.ProductPrice
-
-        // Replace the updated product back into the order's slot products array
-        slot.products = slot.products.map(prod =>
-          prod.productId.toString() === productId
-            ? { ...prod, quantity: product.quantity, total: product.total, productQuoteDate, productEndDate, productSlot }
-            : prod
-        );
-        console.log("slot.products: ", slot.products)
-        // product.total = quantity * product.unitPrice; // Recalculate total
-      } else {
-        product = {
-          productId,
-          productName, // Product name fetched from findProd
-          quantity,
-          // price: Number(unitPrice), // Price fetched from findProd
-          total: Number(quantity) * findProd.ProductPrice, // Initial total
-          productQuoteDate, productEndDate, productSlot
-        };
-        slot.products.push(product);
+      if (!orderProduct) {
+        throw new Error("Product not found in order");
       }
+
+      // Update the existing product's quantity
+      const oldQuantity = orderProduct.quantity;
+      const quantityDifference = quantity - oldQuantity;
+
+      // Update the product's quantity and total
+      orderProduct.quantity = quantity;
+      const rentalDays = moment(productEndDate, "DD-MM-YYYY").diff(moment(productQuoteDate, "DD-MM-YYYY"), "days") + 1;
+      orderProduct.total = Number(quantity) * Number(findProd.ProductPrice) * rentalDays;
 
       // console.log("after updating products: ", order.slots[0].products)
 
-      if (quantity <= findProd.ProductStock) {
-        if (!inventory) {
-          const newInventory = new InventoryModel({
-            productId,
-            reservedQty: Number(quantity),
-            availableQty: Number(findProd.ProductStock - Number(quantity)), // Available qty after reserving
-            startdate: quoteDate,
-            enddate: endDate
-          });
-          console.log("New inventory created:", newInventory);
-
-          // Save the newly created inventory record
-          await newInventory.save({ session });
-        } else {
-          if (availableStock >= safeQuantityDifference) {
-            // inventory.reservedQty += Number(quantityDifference);
-            // inventory.availableQty = Number(findProd.ProductStock - quantity);
-
-            // if safe diff is 0 then product is new
-            if (isNewProduct) {
-              // If safeQuantityDifference is 0, use quantity
-              inventory.reservedQty += Number(quantity);
-              inventory.availableQty = Number(findProd.ProductStock - quantity); // Use quantity to update availableQty
-            } else {
-              // If safeQuantityDifference is not 0, use quantityDifference
-              inventory.reservedQty += Number(quantityDifference);
-              inventory.availableQty = Number(findProd.ProductStock - quantityDifference); // Update based on quantityDifference
-            }
-            console.log("after inventory.reservedQty: ", inventory.reservedQty)
-            await inventory.save({ session });
-            const updatedInventory = await InventoryModel.findOne({
-              productId,
-              startdate: quoteDate,
-              enddate: endDate
-            }).session(session);
-            console.log("after updating inven: ", updatedInventory)
-          } else {
-            throw new Error("Cannot update: Avaiable Stock is less than desired quantity")
-          }
-        }
+      if (availableStock >= quantityDifference) {
+        inventory.reservedQty += quantityDifference;
+        inventory.availableQty = Number(findProd.ProductStock - inventory.reservedQty);
+        await inventory.save({ session });
       } else {
-        // Handle the case if quantity exceeds available stock (optional)
-        throw new Error({ message: "Cannot update: Avaiable Stock is less than desired quantity-2" })
+        throw new Error("Cannot update: Available Stock is less than desired quantity");
       }
 
       // // if (product && quantity <= (inventory.reservedQty + product.quantity)) {
@@ -520,12 +450,6 @@ class order {
             const total = Number(prod.quantity) * Number(findProd.ProductPrice) * rentalDays;
             prod.total = total;
             subtotal += total;
-          } else if (isNewProduct && prod.productId.toString() === productId.toString()) {
-            console.log("new prod: ", prod)
-            const rentalDays = moment(productEndDate, "DD-MM-YYYY").diff(moment(productQuoteDate, "DD-MM-YYYY"), "days") + 1;
-            const total = Number(prod.quantity) * Number(findProd.ProductPrice) * rentalDays;
-            prod.total = total;
-            subtotal += total;
           } else {
             // Use already-stored total
             console.log("prod total: ", prod.total)
@@ -551,7 +475,7 @@ class order {
 
       // Step 9: Update the order's GrandTotal
       order.GrandTotal = grandTotal;
-      order.roundOff = grandTotal;
+      // order.roundOff = ;
 
       // Save the updated order once at the end
       await order.save({ session });
@@ -580,19 +504,369 @@ class order {
     }
   }
 
+
+  /* get order data, specific prod inventory, check avaialb stats n update accordingly
+  *  
+  */
+  async updateExistingOrderById(req, res) {
+    console.log("inside updateOrderById")
+    const { id } = req.params
+    const { productId, quantity, quoteDate, endDate, productQuoteDate, productEndDate, productSlot } = req.body;
+
+    // Start a new session for the transaction
+    const session = await mongoose.startSession();
+
+    try {
+      session.startTransaction(); // Begin the transaction
+
+      // Step 1: Fetch the order using the provided orderId
+      const order = await Order.findById(id).session(session);
+      if (!order) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(404).json({
+          message: `Order not found`
+        });
+      }
+      console.log({ productId, quantity, quoteDate, endDate, productQuoteDate, productEndDate, productSlot })
+      console.log(`typesof : `, typeof (quantity))
+
+      // checking the inventories
+      const allInventories = await InventoryModel.find({ productId: productId }).session(session);
+
+      const inventory = await InventoryModel.findOne({
+        productId,
+        startdate: quoteDate,
+        enddate: endDate,
+      }).session(session);
+
+      if (!inventory) {
+        console.log(`Inventory doesn't exist`)
+        // return res.status(400).json({ message: `Inventory doesn't exist` });
+        throw new Error(`Inventory doesn't exist`);
+      }
+
+      console.log("inventories: ", allInventories)
+
+      const overlappingInventory = allInventories.filter(item => {
+        const inventoryStartDate = parseDate(item.startdate);
+        const inventoryEndDate = parseDate(item.enddate);
+        return inventoryStartDate <= parseDate(endDate) && inventoryEndDate >= parseDate(quoteDate);
+      });
+      console.log("overlappingInventory: ", overlappingInventory)
+
+      const totalReserved = overlappingInventory.reduce(
+        (sum, entry) => sum + (entry.reservedQty || 0),
+        0
+      );
+
+      const findProd = await ProductManagementModel.findById(productId)
+        .select('ProductStock ProductPrice')
+        .lean()
+        .session(session);
+
+      let availableStock = findProd.ProductStock;
+
+      if (overlappingInventory.length > 0) {
+        availableStock = Math.max(findProd.ProductStock - totalReserved, 0); // Ensure no negative stock
+      }
+
+      console.log("availableStock: ", availableStock)
+
+      // // Step 4: Update the product's quantity and total in the order's slots[0].products[]
+      const slot = order.slots[0];
+
+      // Find the existing product in the order
+      const orderProduct = order.slots[0].products.find(prod => prod.productId.toString() === productId.toString());
+      if (!orderProduct) {
+        throw new Error("Product not found in order");
+      }
+
+      const productIds = order.slots[0].products.map(p => p.productId);
+      const products = await ProductManagementModel.find({
+        _id: { $in: productIds }
+      }).select('ProductPrice');
+
+      const priceMap = new Map(products.map(p => [p._id.toString(), p.ProductPrice]));
+      console.log(`priceMap: `, priceMap);
+
+      // Update the existing product's quantity
+      const oldQuantity = orderProduct.quantity;
+      const quantityDifference = quantity - oldQuantity;
+
+      // Update the product's quantity and total
+      orderProduct.quantity = quantity;
+      const rentalDays = moment(productEndDate, "DD-MM-YYYY").diff(moment(productQuoteDate, "DD-MM-YYYY"), "days") + 1;
+      orderProduct.total = Number(quantity) * Number(findProd.ProductPrice) * rentalDays;
+
+      if (availableStock >= quantityDifference) {
+        inventory.reservedQty += quantityDifference;
+        inventory.availableQty = Number(findProd.ProductStock - inventory.reservedQty);
+        await inventory.save({ session });
+      } else {
+        throw new Error("Cannot update: Available Stock is less than desired quantity");
+      }
+
+      // Recalculate the grand total
+      let subtotal = 0;
+
+      order.slots.forEach(slot => {
+        slot.products.forEach((prod, index) => {
+          if (prod.productId.toString() === productId.toString()) {
+            console.log("existing prod: ", prod)
+            const rentalDays = moment(productEndDate, "DD-MM-YYYY").diff(moment(productQuoteDate, "DD-MM-YYYY"), "days") + 1;
+            const total = Number(prod.quantity) * Number(findProd.ProductPrice) * rentalDays;
+            prod.total = total;
+            subtotal += total;
+            console.log(`UPDATED ${prod.productName} total: `, prod.total, "days: ", rentalDays, 'ProductPrice: ', findProd.ProductPrice, 'prod.quantity: ', prod.quantity)
+          } else {
+            // Use already-stored total
+            const price = priceMap.get(prod.productId.toString());
+            const rentalDays = moment(prod.productEndDate, "DD-MM-YYYY").diff(moment(prod.productQuoteDate, "DD-MM-YYYY"), "days") + 1;
+            const total = Number(prod.quantity) * Number(price) * rentalDays;
+            prod.total = total;
+            subtotal += total;
+            console.log(`${prod.productName} total: `, prod.total, "days: ", rentalDays, 'ProductPrice: ', price, 'prod.quantity: ', prod.quantity)
+          }
+        });
+      });
+      console.log({ subtotal })
+
+      const { labourecharge, transportcharge, discount, GST, GrandTotal, refurbishmentAmount } = order
+      const discountAmt = subtotal * (Number(discount || 0) / 100);
+      const totalBeforeCharges = subtotal - discountAmt;
+      const totalAfterCharges = totalBeforeCharges + Number(labourecharge || 0) + Number(transportcharge || 0) + Number(refurbishmentAmount || 0);
+
+      // Calculate GST
+      const gstAmt = totalAfterCharges * (Number(GST || 0) / 100);
+
+      // Final Grand Total
+      const grandTotal = Math.round(totalAfterCharges + gstAmt);
+
+      console.log({ discountAmt, gstAmt })
+
+      // Step 9: Update the order's GrandTotal
+      order.GrandTotal = grandTotal;
+      // order.roundOff = ;
+
+      await order.save({ session });
+
+      console.log({ subtotal, totalBeforeCharges, discountAmt, totalAfterCharges, gstAmt, grandTotal, labourecharge, transportcharge, discount, GST })
+
+
+      await session.commitTransaction();
+      session.endSession();
+
+      res.status(200).json({
+        message: "Order updated and inventory updated successfully."
+      });
+
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+
+      console.error("Error updating order:", error);
+      res.status(500).json({
+        message: "Failed to update order and inventory.",
+        error: error.message,
+      });
+    }
+  }
+
+
+
+
+
+
+  /* get order data, 
+   * specific prod inventory exists/not?
+   * check available stats n update accordingly
+  */
+  async addNewProductToOrderById(req, res) {
+    console.log("inside updateOrderById")
+    const { id } = req.params
+    const { productId, productName, quantity, quoteDate, endDate, isNewProduct, productQuoteDate, productEndDate, productSlot } = req.body;
+
+    const session = await mongoose.startSession();
+
+    try {
+      session.startTransaction();
+
+      // Step 1: Fetch the order using the provided orderId
+      const order = await Order.findById(id).session(session);
+      if (!order) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(404).json({
+          message: `Order not found`
+        });
+      }
+      console.log({ productId, quantity, quoteDate, endDate, isNewProduct, productQuoteDate, productEndDate, productSlot })
+      console.log(`typesof :`, typeof (quantity))
+
+      // checking the inventories
+      const allInventories = await InventoryModel.find({ productId }).session(session);
+
+      const inventory = await InventoryModel.findOne({
+        productId,
+        startdate: quoteDate,
+        enddate: endDate,
+      }).session(session);
+
+      console.log("inventories: ", allInventories)
+
+      const overlappingInventory = allInventories.filter(item => {
+        const inventoryStartDate = parseDate(item.startdate);
+        const inventoryEndDate = parseDate(item.enddate);
+        return inventoryStartDate <= parseDate(endDate) && inventoryEndDate >= parseDate(quoteDate);
+      });
+      console.log("overlappingInventory: ", overlappingInventory)
+
+      const totalReserved = overlappingInventory.reduce(
+        (sum, entry) => sum + (entry.reservedQty || 0),
+        0
+      );
+
+      const findProd = await ProductManagementModel.findById(productId)
+        .select('ProductStock ProductPrice')
+        .lean()
+        .session(session);
+      
+      let availableStock = findProd.ProductStock;
+      
+      if (overlappingInventory.length > 0) {
+        availableStock = Math.max(findProd.ProductStock - totalReserved, 0);
+      }
+
+      console.log("availableStock: ", availableStock)
+
+      const slot = order.slots[0];
+      const rentalDays = moment(productEndDate, "DD-MM-YYYY").diff(moment(productQuoteDate, "DD-MM-YYYY"), "days") + 1;
+
+      if (availableStock >= quantity) {
+        if (!inventory) {
+          // Create new inventory record
+          const newInventory = new InventoryModel({
+            productId,
+            reservedQty: quantity,
+            availableQty: Number(findProd.ProductStock - quantity),
+            startdate: quoteDate,
+            enddate: endDate
+          });
+          await newInventory.save({ session });
+        } else {
+          // Update existing inventory
+          inventory.reservedQty += quantity;
+          inventory.availableQty = Number(findProd.ProductStock - inventory.reservedQty);
+          await inventory.save({ session });
+        }
+      } else {
+        throw new Error("Cannot update: Available Stock is less than desired quantity");
+      }
+
+      const addProduct = {
+        productId,
+        productName,
+        quantity,
+        // price: Number(unitPrice), // Price fetched from findProd
+        total: Number(quantity) * findProd.ProductPrice, // Initial total
+        productQuoteDate, productEndDate, productSlot
+      };
+      slot.products.push(addProduct);
+
+      const productIds = order.slots[0].products.map(p => p.productId);
+      const products = await ProductManagementModel.find({
+        _id: { $in: productIds }
+      })
+        .select('ProductPrice')
+        .lean();
+
+      const priceMap = new Map(products.map(p => [p._id.toString(), p.ProductPrice]));
+      console.log(`priceMap: `, priceMap);
+
+
+      let subtotal = 0;
+
+      order.slots.forEach(slot => {
+        slot.products.forEach((prod, index) => {
+          if (prod.productId.toString() === productId.toString()) {
+            // console.log("existing prod: ", prod)
+            const rentalDays = moment(productEndDate, "DD-MM-YYYY").diff(moment(productQuoteDate, "DD-MM-YYYY"), "days") + 1;
+            const total = Number(prod.quantity) * Number(findProd.ProductPrice) * rentalDays;
+            prod.total = total;
+            subtotal += total;
+            console.log(`ADDED ${prod.productName} total: `, prod.total, "days: ", rentalDays, 'ProductPrice: ', findProd.ProductPrice, 'prod.quantity: ', prod.quantity)
+          } else {
+            // Use already-stored total
+            const price = priceMap.get(prod.productId.toString());
+            const rentalDays = moment(prod.productEndDate, "DD-MM-YYYY").diff(moment(prod.productQuoteDate, "DD-MM-YYYY"), "days") + 1;
+            const total = Number(prod.quantity) * Number(price) * rentalDays;
+            prod.total = total;
+            subtotal += total;
+            console.log(`${prod.productName} total: `, prod.total, "days: ", rentalDays, 'ProductPrice: ', price, 'prod.quantity: ', prod.quantity)
+          }
+        });
+      });
+      console.log({ subtotal })
+
+      const { labourecharge, transportcharge, discount, GST, GrandTotal, refurbishmentAmount } = order
+      const discountAmt = subtotal * (Number(discount || 0) / 100);
+      const totalBeforeCharges = subtotal - discountAmt;
+      const totalAfterCharges = totalBeforeCharges + Number(labourecharge || 0) + Number(transportcharge || 0) + Number(refurbishmentAmount || 0);
+
+      const gstAmt = totalAfterCharges * (Number(GST || 0) / 100);
+
+      const grandTotal = Math.round(totalAfterCharges + gstAmt);
+
+      console.log({ discountAmt, gstAmt })
+
+      // Step 9: Update the order's GrandTotal
+      order.GrandTotal = grandTotal;
+      // order.roundOff = ;
+
+      await order.save({ session });
+
+      console.log({ subtotal, totalBeforeCharges, discountAmt, totalAfterCharges, gstAmt, grandTotal, labourecharge, transportcharge, discount, GST })
+
+
+      await session.commitTransaction();
+      session.endSession();
+
+      res.status(200).json({
+        message: "Order updated and inventory updated successfully."
+      });
+
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+
+      console.error("Error updating order:", error);
+      res.status(500).json({
+        message: "Failed to update order and inventory.",
+        error: error.message,
+      });
+    }
+  }
+
+
+
+
+
+
   async updateOrderFields(req, res) {
     const { orderId, roundOff } = req.body;
+    console.log({ orderId, roundOff });
 
-    if (!roundOff || isNaN(roundOff)) {
+    if (typeof roundOff !== 'number' || isNaN(roundOff)) {
       return res.status(400).json({
-        message: "Round off is required and should be a number",
+        message: "Round off must be a valid number",
       });
     }
 
     const updatedOrder = await Order.findByIdAndUpdate(
       orderId,
       { roundOff },
-      { new: true } // Return the updated document
+      { new: true }
     );
 
 
@@ -942,7 +1216,7 @@ class order {
 
       // Step 5: Update the GrandTotal in the order
       order.GrandTotal = grandTotal;
-      order.roundOff = grandTotal;
+      // order.roundOff = ;
 
       // Save the updated order
       await order.save({ session });

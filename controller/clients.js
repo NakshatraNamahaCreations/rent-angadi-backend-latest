@@ -4,38 +4,36 @@ const cache = new NodeCache({ stdTTL: 100, checkperiod: 120 });
 const { parse } = require('date-fns');
 const Order = require("../model/order");
 const { default: mongoose } = require("mongoose");
+const AdminModel = require("../model/Auth/adminLogin");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
 
 class Clients {
   async createClients(req, res) {
-    let {
-      clientName,
-      email,
-      phoneNumber,
-      // password,
-      address,
-      activeStatus,
-      executives,
-    } = req.body;
+    let { clientName, email, phoneNumber, address, activeStatus, executives, clientUsername, clientPassword, } = req.body;
 
-    console.log({
-      clientName,
-      email,
-      phoneNumber,
-      // password,
-      address,
-      activeStatus,
-      executives
-    })
+    console.log({ clientName, email, phoneNumber, address, activeStatus, executives })
 
     try {
       // Check if client with the same phone number already exists
-      // console.log("phone: ", phoneNumber)
+      console.log("Client phoneNumber: ", phoneNumber)
       // const existingClient = await Clientmodel.findOne({ phoneNumber });
       // console.log("existingClient: ", existingClient)
       // if (existingClient) {
       //   return res.status(401).json({ error: "This number already exists!" });
       // }
 
+      const phoneRegex = /^[6-9]\d{9}$/; // Starts with 6–9 and has 10 digits
+      if (!phoneRegex.test(phoneNumber)) {
+        return res.status(400).json({ error: "Invalid Client phone number" });
+      }
+
+      executives.forEach((exec) => {
+        console.log(`exec: ${exec.phoneNumber}`);
+        if (!phoneRegex.test(exec.phoneNumber)) {
+          return res.status(400).json({ error: "Invalid Executive phone number" });
+        }
+      });
 
       let parsedExecutives = [];
       if (executives) {
@@ -44,7 +42,6 @@ class Clients {
           : JSON.parse(executives);
       }
 
-      // Create a new client
       const newClient = new Clientmodel({
         clientName,
         email,
@@ -58,6 +55,21 @@ class Clients {
       // Save the client to the database
       const savedClient = await newClient.save();
 
+      const admin = await AdminModel.findOne({ email });
+      console.log(`admin: `, admin);
+
+      if (admin) {
+        return res.status(400).json({ error: "Email already exists" });
+      }
+
+      const newAdmin = await AdminModel.create({
+        email,
+        password: await bcrypt.hash(clientPassword, 10),
+        roles: {
+          executiveManagement: true
+        }
+      });
+
       // Invalidate cache after adding a new client (if caching is used)
       if (cache) cache.del("allclients");
 
@@ -67,6 +79,7 @@ class Clients {
       return res.status(500).json({ error: "Failed to add Client" });
     }
   }
+
   async clientlogin(req, res) {
     let { companyName, phoneNumber } = req.body;
 
@@ -275,7 +288,8 @@ class Clients {
         {
           $group: {
             _id: "$ClientId",
-            totalGrandTotal: { $sum: "$GrandTotal" }
+            totalGrandTotal: { $sum: "$GrandTotal" },
+            totalRoundOff: { $sum: "$roundOff" }
           }
         },
         {
@@ -290,7 +304,8 @@ class Clients {
         {
           $project: {
             clientName: "$clientInfo.ClientName",
-            totalGrandTotal: 1
+            totalGrandTotal: 1,
+            totalRoundOff: 1
           }
         }
       ]);

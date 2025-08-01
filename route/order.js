@@ -10,6 +10,8 @@ router.get("/getApprovedData", orderController.getApprovedOrders);
 router.get("/TotalNumberOfOrder", orderController.getTotalNumberOfOrder);
 router.get("/findwithclientid/:id", orderController.getfindwithClientID);
 router.put("/updateOrderById/:id", orderController.updateOrderById);
+router.put("/updateExistingOrderById/:id", orderController.updateExistingOrderById);
+router.put("/addNewProductToOrderById/:id", orderController.addNewProductToOrderById);
 router.put("/updateOrderFields", orderController.updateOrderFields);
 router.delete("/deleteProductInOrderById/:id", orderController.deleteProductInOrderById);
 router.put("/updateStatus/:id", orderController.updateStatus);

@@ -786,7 +786,7 @@ class ProductManagement {
         },
       ]);
       if (Data) {
-        return res.json({ ProductsData: Data });
+        return res.status(200).json({ ProductsData: Data });
       } else {
         return res.status(404).json({ error: "No data found" });
       }
