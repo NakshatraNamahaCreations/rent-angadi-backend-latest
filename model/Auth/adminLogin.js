@@ -12,16 +12,14 @@ const adminSchema = new mongoose.Schema({
   },
   clientId: {
     type: mongoose.Types.ObjectId,
+    default: null,
   },
-  roles: {
-    superAdmin: {
-      type: Boolean,
-      default: false,
-    },
-    admin: {
-      type: Boolean,
-      default: false,
-    },
+  role: {
+    type: String,
+    enum: ["superAdmin", "admin"],
+    required: true
+  },
+  permissions: {
     adminRights: {
       type: Boolean,
       default: false,

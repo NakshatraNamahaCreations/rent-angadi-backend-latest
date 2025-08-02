@@ -7,10 +7,11 @@ const { default: mongoose } = require("mongoose");
 const AdminModel = require("../model/Auth/adminLogin");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
+const Person = require("../model/Person");
 
 class Clients {
   async createClients(req, res) {
-    let { clientName, email, phoneNumber, address, activeStatus, executives, clientUsername, clientPassword, } = req.body;
+    let { clientName, email, phoneNumber, address, activeStatus, executives, clientPassword, } = req.body;
 
     console.log({ clientName, email, phoneNumber, address, activeStatus, executives })
 
@@ -28,47 +29,58 @@ class Clients {
         return res.status(400).json({ error: "Invalid Client phone number" });
       }
 
-      executives.forEach((exec) => {
-        console.log(`exec: ${exec.phoneNumber}`);
-        if (!phoneRegex.test(exec.phoneNumber)) {
-          return res.status(400).json({ error: "Invalid Executive phone number" });
-        }
-      });
+      // executives.forEach((exec) => {
+      //   console.log(`exec: ${exec.phoneNumber}`);
+      //   if (!phoneRegex.test(exec.phoneNumber)) {
+      //     return res.status(400).json({ error: "Invalid Executive phone number" });
+      //   }
+      // });
 
-      let parsedExecutives = [];
-      if (executives) {
-        parsedExecutives = Array.isArray(executives)
-          ? executives
-          : JSON.parse(executives);
-      }
+      // let parsedExecutives = [];
+      // if (executives) {
+      //   parsedExecutives = Array.isArray(executives)
+      //     ? executives
+      //     : JSON.parse(executives);
+      // }
 
       const newClient = new Clientmodel({
         clientName,
         email,
-        // password,
         phoneNumber,
         address,
         activeStatus,
-        executives: parsedExecutives, // Store executives array
       });
 
-      // Save the client to the database
-      const savedClient = await newClient.save();
-
-      const admin = await AdminModel.findOne({ email });
-      console.log(`admin: `, admin);
-
-      if (admin) {
-        return res.status(400).json({ error: "Email already exists" });
+      const existingPerson = await Person.findOne({ phoneNumber });
+      if (existingPerson) {
+        // if (!existingUser.clientDetails) {
+        //   existingUser.clientDetails = newClient._id;
+        //   await existingUser.save();
+        //   const savedClient = await newClient.save();
+        //   return res.json({ 
+        //     success: "Client added successfully",
+        //     client: savedClient,
+        //     message: "User already existed but was updated with client details"
+        //   });
+        // }
+        return res.status(400).json({ error: "Phone number already exists" });
       }
 
-      const newAdmin = await AdminModel.create({
-        email,
-        password: await bcrypt.hash(clientPassword, 10),
-        roles: {
-          executiveManagement: true
-        }
+      const savedClient = await newClient.save();
+
+      const hashedPassword = await bcrypt.hash(clientPassword, 10);
+      const newPerson = await Person.create({
+        phoneNumber,
+        password: hashedPassword,
+        role: "client",
+        clientDetails: savedClient._id,
       });
+
+      // If Person creation fails, delete the client
+      if (!newPerson) {
+        await Clientmodel.findByIdAndDelete(savedClient._id);
+        return res.status(500).json({ error: "Failed to create Person account" });
+      }
 
       // Invalidate cache after adding a new client (if caching is used)
       if (cache) cache.del("allclients");
@@ -239,23 +251,23 @@ class Clients {
   // }
 
   async getallClients(req, res) {
-    let cachedSubcategories = cache.get("allclients");
-    if (cachedSubcategories) {
-      return res.json({ Client: cachedSubcategories });
+    let cachedClients = cache.get("allclients");
+    if (cachedClients) {
+      return res.json({ Client: cachedClients });
     } else {
       try {
-        let Client = await Clientmodel.find({}).sort({ createdAt: -1 });
-        if (Client) {
-          cache.set("allclients", Client);
-          console.log(Client);
-          return res.json({ Client: Client });
+        const clients = await Clientmodel.find({}).sort({ createdAt: -1 }).lean();
+        if (clients && clients.length > 0) {
+          cache.set("allclients", clients);
+          return res.json({ Client: clients });
         } else {
-          return res.status(404).json({ error: "No subcategories found" });
+          return res.status(404).json({ error: "No clients found" });
         }
       } catch (error) {
+        console.error("Error getting clients:", error);
         return res
           .status(500)
-          .json({ error: "Failed to retrieve subcategories" });
+          .json({ error: "Failed to retrieve clients" });
       }
     }
   }
@@ -366,6 +378,22 @@ class Clients {
       }
     } catch (error) {
       return res.status(500).json({ error: "Failed to delete Client" });
+    }
+  }
+
+  async getCurrentClientName(req, res) {
+    const { clientId } = req;
+    try {
+      let Client = await Clientmodel.find({ _id: clientId })
+      if (Client) {
+        return res.json({ ClientNames: Client });
+      } else {
+        return res.status(404).json({ error: "No subcategories found" });
+      }
+    } catch (error) {
+      return res
+        .status(500)
+        .json({ error: "Failed to retrieve subcategories" });
     }
   }
 }

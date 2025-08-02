@@ -45,9 +45,10 @@ const adminMiddleware = async (req, res, next) => {
         if (!admin) {
             return res.status(404).json({ error: "Admin not found" });
         }
-        console.log(`admin roles: `, admin.toJSON());
+        // console.log(`admin roles: `, admin.toJSON());
+        console.log(`admin roles: `, admin.toObject());
         // checl roles.superAdmin true else error
-        if (admin.roles.admin !== true) {
+        if (admin.role !== "superAdmin" && admin.role !== "admin") {
             return res.status(401).json({ error: "You are not authorized" });
         }
 

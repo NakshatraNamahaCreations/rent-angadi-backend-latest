@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { adminSignUp, adminLogin, adminsList, getAdminPermission, updateAdminPermission, getAdminPermissionForSuperAdmin } = require("../../controller/Auth/adminLogin");
-// const adminMiddleware = require("../../middleware/clientMiddleware");
+const userMiddleware = require("../../middleware/clientMiddleware");
 const AdminModel = require("../../model/Auth/adminLogin");
 const { superAdminMiddleware, adminMiddleware } = require("../../middleware/superAdminMiddleware");
 

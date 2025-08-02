@@ -1,18 +1,19 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
-const Executive = require("../model/executive");
 const Clientmodel = require("../model/clients");
-const AdminModel = require("../model/Auth/adminLogin");
+const Executive = require("../model/executive");
+const Person = require("../model/Person");
 
 const executiveController = {
   async createExecutive(req, res) {
     try {
-      const { username, password, name, email, clientId } = req.body;
+      const { password, phoneNumber, name, email } = req.body;
+      const { clientId } = req;
 
       // Validate required fields
-      if (!username || !password || !name || !email || !clientId) {
+      if (!password || !phoneNumber || !name || !email || !clientId) {
         return res.status(400).json({
-          message: "All fields (username, password, name, email, clientId) are required"
+          message: "All fields (password, phoneNumber, name, email, clientId) are required"
         });
       }
 
@@ -24,42 +25,42 @@ const executiveController = {
         });
       }
 
-      const existingExecutive = await Executive.findOne({
-        $or: [
-          { username },
-          { email }
-        ],
-        clientId
+      // const existingExecutive = await Executive.findOne({
+      //   $or: [
+      //     { username },
+      //     { email }
+      //   ],
+      //   clientId
+      // });
+
+      const existingExecutive = await Person.findOne({
+        phoneNumber
       });
 
       if (existingExecutive) {
         return res.status(400).json({
-          message: existingExecutive.username === username
-            ? "Username already exists for this client"
+          message: existingExecutive.phoneNumber === phoneNumber
+            ? "Phone Number already exists for this client"
             : "Email already exists for this client"
         });
       }
 
-      const newExecutive = new AdminModel({
+      const newExecutive = await Executive.create({
         email,
-        password,
+        executiveName: name,
         clientId,
-        isExecutive: true,
-        roles: {
-          addNewEnquiry: true,
-          myOrders: true
-        }
+        role: "executive",
       });
 
-      await newExecutive.save();
-
-      // Don't return password in response
-      const executiveData = newExecutive.toObject();
-      delete executiveData.password;
+      const newPerson = await Person.create({
+        phoneNumber,
+        role: "executive",
+        clientId,
+        executiveId: newExecutive._id
+      })
 
       res.status(201).json({
-        message: "Executive created successfully",
-        executive: executiveData
+        message: "Executive created successfully"
       });
     } catch (error) {
       console.error("Error creating executive:", error);
@@ -72,7 +73,7 @@ const executiveController = {
 
   async getAllExecutives(req, res) {
     try {
-      const { clientId } = req.params;
+      const { clientId } = req;
 
       if (!clientId) {
         return res.status(400).json({
@@ -80,13 +81,18 @@ const executiveController = {
         });
       }
 
-      const executives = await Executive.find({ clientId })
-        .select('-password')
-        .sort({ createdAt: -1 });
+      const client = await Clientmodel.findById(clientId).lean();
+
+      const Persons = await Person.find({ clientId, role: "executive" })
+        .populate('executiveId', 'executiveName clientId')
+        .sort({ createdAt: -1 })
+        .lean();
+
+      console.log("Persons: ", Persons);
 
       res.status(200).json({
         message: "Executives retrieved successfully",
-        executives
+        executives: Persons
       });
     } catch (error) {
       console.error("Error getting executives:", error);
@@ -104,7 +110,6 @@ const executiveController = {
         _id: id,
         clientId
       })
-        .select('-password');
 
       if (!executive) {
         return res.status(404).json({
@@ -150,7 +155,7 @@ const executiveController = {
         },
         updates,
         { new: true, runValidators: true }
-      ).select('-password');
+      );
 
       if (!executive) {
         return res.status(404).json({
@@ -199,9 +204,9 @@ const executiveController = {
 
   async login(req, res) {
     try {
-      const { username, password } = req.body;
+      const { phoneNumber, password } = req.body;
 
-      const executive = await Executive.findOne({ username });
+      const executive = await Executive.findOne({ phoneNumber });
 
       if (!executive || !await executive.comparePassword(password)) {
         return res.status(401).json({
@@ -212,7 +217,7 @@ const executiveController = {
       const token = jwt.sign(
         {
           id: executive._id,
-          username: executive.username,
+          phoneNumber: executive.phoneNumber,
           role: executive.role
         },
         process.env.JWT_SECRET,

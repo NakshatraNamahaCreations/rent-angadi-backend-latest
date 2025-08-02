@@ -32,7 +32,6 @@ const category = require("./route/category");
 const subcategory = require("./route/subcategory");
 const product = require("./route/product");
 const Clients = require("./route/clients");
-const executive = require("./route/executive");
 const banner = require("./route/banner");
 const order = require("./route/order");
 const quotations = require("./route/quotations");
@@ -45,6 +44,8 @@ const adminLogin = require("./route/Auth/adminLogin");
 const payment = require('./route/payment')
 const report = require('./route/report')
 const user = require("./route/user");
+const clientAuth = require("./route/Auth/clientAuth.js");
+const executive = require("./route/executive");
 
 app.use("/api", payu);
 app.use("/api", adminLogin);
@@ -53,6 +54,7 @@ app.use("/api/category", category);
 app.use("/api/subcategory", subcategory);
 app.use("/api/product", product);
 app.use("/api/client", Clients);
+app.use("/api/clientAuth", clientAuth);
 app.use("/api/executive", executive);
 app.use("/api/banner", banner);
 app.use("/api/order", order);

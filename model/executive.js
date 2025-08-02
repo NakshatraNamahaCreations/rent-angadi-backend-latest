@@ -2,39 +2,27 @@ const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 
 const executiveSchema = new mongoose.Schema({
-  username: {
-    type: String,
-    required: true,
-    unique: true,
-    trim: true,    
-  },
-  password: {
-    type: String,
-    required: true,
-    minlength: 6,
-    select: false // Don't include in queries by default
-  },
+  // phoneNumber: {
+  //   type: String,
+  //   required: true,
+  // },
+  // password: {
+  //   type: String,
+  //   required: true,
+  //   minlength: 6,
+  // },
   clientId: {
     type: mongoose.Types.ObjectId,
+    ref: 'Client',
     required: true,
   },
-  name: {
+  executiveName: {
     type: String,
     required: true,
-    trim: true,
-    minlength: 2,
-    maxlength: 100
   },
-  email: {
-    type: String,
-    required: true,
-    unique: true,
-    trim: true,
-    lowercase: true,
-  },
-  isActive: {
-    type: Boolean,
-    default: true
+  permissions: {
+    addNewEnquiry: { type: Boolean, default: true },
+    viewOrders: { type: Boolean, default: true },
   },
 }, { timestamps: true });
 
@@ -54,4 +42,6 @@ executiveSchema.methods.comparePassword = async function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-module.exports = mongoose.model('Executive', executiveSchema);
+const Executive = mongoose.model('Executive', executiveSchema);
+
+module.exports = Executive;
