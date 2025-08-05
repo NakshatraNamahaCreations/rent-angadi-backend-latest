@@ -2,10 +2,12 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const Clientmodel = require("../model/clients");
 const Executive = require("../model/executive");
-const Person = require("../model/Person");
-
+const User = require("../model/user");
+const mongoose = require("mongoose");
 const executiveController = {
   async createExecutive(req, res) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
     try {
       const { password, phoneNumber, name, email } = req.body;
       const { clientId } = req;
@@ -18,7 +20,7 @@ const executiveController = {
       }
 
       // Check if client exists
-      const client = await Clientmodel.findById(clientId);
+      const client = await User.findById(clientId);
       if (!client) {
         return res.status(404).json({
           message: "Client not found"
@@ -33,7 +35,7 @@ const executiveController = {
       //   clientId
       // });
 
-      const existingExecutive = await Person.findOne({
+      const existingExecutive = await User.findOne({
         phoneNumber
       });
 
@@ -45,29 +47,41 @@ const executiveController = {
         });
       }
 
-      const newExecutive = await Executive.create({
-        email,
-        executiveName: name,
-        clientId,
-        role: "executive",
-      });
 
-      const newPerson = await Person.create({
-        phoneNumber,
-        role: "executive",
-        clientId,
-        executiveId: newExecutive._id
-      })
+      const newExecutive = await User.create([
+        {
+          phoneNumber,
+          name,
+          email,
+          clientId,
+          role: "executive",
+          permissions: {
+            addNewEnquiry: true,            
+            }
+          }
+      ], { session });
 
-      res.status(201).json({
+      // await User.updateOne({ _id: clientId }, { $push: { executives: newExecutive._id } }, { session });
+      await User.updateOne(
+        { _id: clientId },
+        { $push: { executives: newExecutive[0]._id } }, // Push the executive's _id to the client's executives array
+        { session } // Pass session to the update operation
+      );
+
+
+      await session.commitTransaction();
+
+      return res.status(201).json({
         message: "Executive created successfully"
       });
     } catch (error) {
-      console.error("Error creating executive:", error);
+      await session.abortTransaction();
       res.status(500).json({
         message: "Failed to create executive",
         error: error.message
       });
+    } finally {
+      await session.endSession();
     }
   },
 
@@ -81,18 +95,20 @@ const executiveController = {
         });
       }
 
-      const client = await Clientmodel.findById(clientId).lean();
-
-      const Persons = await Person.find({ clientId, role: "executive" })
-        .populate('executiveId', 'executiveName clientId')
-        .sort({ createdAt: -1 })
+      const client = await User.findById(clientId)
+        .populate('executives', 'name phoneNumber permissions isActive')
         .lean();
 
-      console.log("Persons: ", Persons);
+      // const users = await User.find({ clientId, role: "executive" })
+      //   .populate('executiveId', 'executiveName clientId')
+      //   .sort({ createdAt: -1 })
+      //   .lean();
+
+      // console.log("Users: ", users);
 
       res.status(200).json({
         message: "Executives retrieved successfully",
-        executives: Persons
+        client
       });
     } catch (error) {
       console.error("Error getting executives:", error);
@@ -106,7 +122,7 @@ const executiveController = {
   async getExecutive(req, res) {
     try {
       const { id, clientId } = req.params;
-      const executive = await Executive.findOne({
+      const executive = await User.findOne({
         _id: id,
         clientId
       })

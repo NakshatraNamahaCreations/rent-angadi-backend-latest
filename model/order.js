@@ -60,18 +60,18 @@ const orderSchema = new mongoose.Schema({
     type: String,
     require: true,
   },
-  userId: {
-    type: String,
-    required: false,
-  },
   invoiceId: {
     type: String,
     require: true,
   },
-  ClientId: {
+  clientId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Client",
+    ref: "User",
     required: true,
+  },
+  executiveId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",    
   },
   clientName: {
     type: String,
@@ -79,7 +79,7 @@ const orderSchema = new mongoose.Schema({
   },
   clientNo: {
     type: String,
-    required: true,
+    // required: true,
   },
   placeaddress: {
     type: String,

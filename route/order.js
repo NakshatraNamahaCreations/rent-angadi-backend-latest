@@ -1,10 +1,11 @@
 const express = require("express");
 const router = express.Router();
 const orderController = require("../controller/order");
+const { userMiddleware } = require("../middleware/clientMiddleware");
 
 router.post("/postaddorder", orderController.postaddorder);
 router.get("/getallorder", orderController.getallorders);
-router.get("/my-orders/:userId", orderController.getMyOrders);
+router.get("/my-orders", userMiddleware, orderController.getMyOrders);
 router.get("/getOrder/:id", orderController.getOrderById);
 router.get("/getApprovedData", orderController.getApprovedOrders);
 router.get("/TotalNumberOfOrder", orderController.getTotalNumberOfOrder);

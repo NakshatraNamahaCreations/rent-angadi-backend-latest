@@ -23,8 +23,14 @@ const QuotationSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  userId: {
-    type: String,
+  clientId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
+  executiveId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
     required: false,
   },
   enquiryId: {
@@ -44,10 +50,10 @@ const QuotationSchema = new mongoose.Schema({
     type: String,
     require: true,
   },
-  clientId: {
-    type: String,
-    require: true,
-  },
+  // clientId: {
+  //   type: String,
+  //   require: true,
+  // },
   clientName: {
     type: String,
     require: true,

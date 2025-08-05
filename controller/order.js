@@ -41,7 +41,8 @@ class order {
       quoteId,
       userId,
       slots,
-      ClientId,
+      clientId,
+      executiveId,
       clientName,
       clientNo,
       executivename,
@@ -160,12 +161,18 @@ class order {
 
       console.log("New Invoice ID:", invoiceId);
 
+      let updatedExecutiveId = executiveId;
+      if (executiveId === "") {
+        updatedExecutiveId = null;
+      }
+
+
       // Create the order after inventory updates
       const newOrder = new ordermodel({
         quoteId,
-        userId,
+        clientId,
+        executiveId: updatedExecutiveId,
         invoiceId,
-        ClientId,
         clientName,
         clientNo,
         executivename,
@@ -731,9 +738,9 @@ class order {
         .select('ProductStock ProductPrice')
         .lean()
         .session(session);
-      
+
       let availableStock = findProd.ProductStock;
-      
+
       if (overlappingInventory.length > 0) {
         availableStock = Math.max(findProd.ProductStock - totalReserved, 0);
       }
@@ -1060,10 +1067,32 @@ class order {
   }
 
   async getMyOrders(req, res) {
-    const { userId } = req.params;
+    const { clientId } = req;
+    const objClientId = new mongoose.Types.ObjectId(clientId);
+    console.log(`clientId: `, clientId);
+
     try {
-      let data = await ordermodel.find({ userId }).sort({ _id: -1 });
-      const total = await ordermodel.countDocuments({ userId });
+      console.time('myOrders')
+      // const data = await ordermodel.find({ clientId }).sort({ _id: -1 }).lean();
+      // const total = await ordermodel.countDocuments({ clientId }).lean();
+
+      const aggregationPipeline = [
+        { $match: { clientId: objClientId } }, // Match the documents based on `clientId`
+        { $sort: { _id: -1 } },    // Sort the documents by `_id` in descending order
+        {
+          $facet: {
+            total: [{ $count: "totalCount" }],   // Get the total count of documents
+            data: [{ $skip: 0 }, { $limit: 10 }] // You can change the skip/limit based on your pagination
+          }
+        }
+      ];
+
+      const result = await ordermodel.aggregate(aggregationPipeline);
+
+      const data = result[0].data;  // The documents you wanted to fetch
+      const total = result[0].total[0]?.totalCount || 0;  // The total count
+
+      console.timeEnd('myOrders')
       if (data) {
         return res.json({ total, orderData: data });
       } else {

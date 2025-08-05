@@ -155,6 +155,7 @@ class Quotations {
         enquiryId,
         userId,
         clientId,
+        executiveId,
         quoteDate,
         endDate,
         quoteTime,
@@ -182,6 +183,7 @@ class Quotations {
         enquiryId,
         userId,
         clientId,
+        executiveId,
         quoteDate,
         endDate,
         quoteTime,
@@ -215,11 +217,17 @@ class Quotations {
           .padStart(4, "0")}`
         : "QT0001";
 
+      let updatedExecutiveId = executiveId;
+      if (executiveId === "") {
+        updatedExecutiveId = null;
+      }
+
       // Create the new quotation
       const newQuotation = new Quotationmodel({
         enquiryId,
         userId,
         clientId,
+        executiveId: updatedExecutiveId,
         quoteId: nextQuoteId,
         clientName,
         Products,
@@ -591,7 +599,7 @@ class Quotations {
   }
 
   async getMyQuotations(req, res) {
-    const { userId } = req.params;    
+    const { userId } = req.params;
 
     try {
       let data = await Quotationmodel.find({ userId }).sort({ _id: -1 });

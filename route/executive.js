@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const executiveController = require("../controller/executive");
-const { clientMiddleware } = require("../middleware/clientMiddleware");
+const { clientMiddleware, authorizeRoles, authenticateClient } = require("../middleware/clientMiddleware");
 // const { authMiddleware } = require("../middleware/auth");
 // const { roleCheck } = require("../middleware/roleCheck");
 
@@ -12,10 +12,12 @@ const { clientMiddleware } = require("../middleware/clientMiddleware");
 // Routes that require admin role
 // router.use("/", roleCheck(['admin']));
 
-router.post("/", clientMiddleware, executiveController.createExecutive);
-router.get("/", clientMiddleware, executiveController.getAllExecutives);
-router.get("/:id", clientMiddleware, executiveController.getExecutive);
-router.put("/:id", clientMiddleware, executiveController.updateExecutive);
-router.delete("/:id", clientMiddleware, executiveController.deleteExecutive);
+router.use(authenticateClient);
+
+router.post("/", authorizeRoles('client'), executiveController.createExecutive);
+router.get("/", authorizeRoles('client'), executiveController.getAllExecutives);
+router.get("/:id", authorizeRoles('client'), executiveController.getExecutive);
+router.put("/:id", authorizeRoles('client'), executiveController.updateExecutive);
+router.delete("/:id", authorizeRoles('client'), executiveController.deleteExecutive);
 
 module.exports = router;

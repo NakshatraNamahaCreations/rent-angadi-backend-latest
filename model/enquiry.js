@@ -11,6 +11,9 @@ const EnquirySchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       required: true,
     },
+    executiveId: {
+      type: mongoose.Schema.Types.ObjectId,      
+    },
     userId:{
       type: String,
       required: false,
@@ -23,10 +26,10 @@ const EnquirySchema = new mongoose.Schema(
       type: String,
       require: true,
     },
-    clientId: {
-      type: String,
-      require: true,
-    },
+    // clientId: {
+    //   type: String,
+    //   require: true,
+    // },
     clientName: {
       type: String,
       require: true,

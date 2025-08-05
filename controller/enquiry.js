@@ -10,6 +10,7 @@ class Enquiry {
   async createEnquiry(req, res) {
     const {
       clientId,
+      executiveId,
       enquiryDate,
       enquiryTime,
       endDate,
@@ -26,7 +27,6 @@ class Enquiry {
       termsandCondition,
       GST,
       placeaddress,
-      userId,
     } = req.body;
 
     console.log(placeaddress);
@@ -47,9 +47,16 @@ class Enquiry {
       const latestEquiry = latestCustomer ? latestCustomer.enquiryId : 0;
       const newEquiry = latestEquiry + 1;
       const enquiryId = await Counter?.getNextSequence("enquiryId");
+
+      let updatedExecutiveId = executiveId;
+      if (executiveId === "") {
+        updatedExecutiveId = null;
+      }
+
       // Create a new Enquiry with the incremented enquiryId
       const newEnquiry = new Enquirymodel({
         clientId,
+        executiveId: updatedExecutiveId,
         enquiryId,
         clientName,
         executivename,
@@ -67,7 +74,6 @@ class Enquiry {
         GST,
         status,
         placeaddress,
-        userId,
       });
 
       // Save the new Enquiry to the database
