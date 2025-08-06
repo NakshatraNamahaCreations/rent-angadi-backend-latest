@@ -6,3 +6,5 @@
 temp/
 tests/
 dist/
+scripts/
+*.rar

@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const executiveController = require("../controller/executive");
-const { clientMiddleware, authorizeRoles, authenticateClient } = require("../middleware/clientMiddleware");
+const { clientMiddleware, authorizeRoles, authenticateClient, userMiddleware } = require("../middleware/clientMiddleware");
 // const { authMiddleware } = require("../middleware/auth");
 // const { roleCheck } = require("../middleware/roleCheck");
 
@@ -14,10 +14,10 @@ const { clientMiddleware, authorizeRoles, authenticateClient } = require("../mid
 
 router.use(authenticateClient);
 
-router.post("/", authorizeRoles('client'), executiveController.createExecutive);
-router.get("/", authorizeRoles('client'), executiveController.getAllExecutives);
-router.get("/:id", authorizeRoles('client'), executiveController.getExecutive);
-router.put("/:id", authorizeRoles('client'), executiveController.updateExecutive);
-router.delete("/:id", authorizeRoles('client'), executiveController.deleteExecutive);
+router.post("/", authenticateClient, authorizeRoles('client'), executiveController.createExecutive);
+router.get("/", authenticateClient, authorizeRoles('client'), executiveController.getAllExecutives);
+router.get("/:id", authenticateClient, authorizeRoles('client'), executiveController.getExecutive);
+router.put("/:id", authenticateClient, userMiddleware, authorizeRoles('client'), executiveController.updateExecutive);
+router.delete("/:id", authenticateClient, userMiddleware, authorizeRoles('client'), executiveController.deleteExecutive);
 
 module.exports = router;

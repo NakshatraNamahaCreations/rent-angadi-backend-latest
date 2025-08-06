@@ -27,10 +27,11 @@ const signup = async (req, res) => {
 
     const newUser = await User.create({
       phoneNumber,
+      password
     });
 
     const token = jwt.sign({ phoneNumber }, JWT_SECRET_KEY, {
-      expiresIn: "1h",
+      expiresIn: "24h",
     });
     res.status(201).json({ message: "User signed up successfully", token, newUser });
   } catch (error) {
@@ -43,11 +44,56 @@ const login = async (req, res) => {
     const { phoneNumber, password } = req.body;
     console.log("phoneNumber: ", phoneNumber)
 
-    const user = await User.findOne({ phoneNumber }).lean();
+    const user = await User.findOne({ phoneNumber })
+      .lean();
     console.log(`user: `, user);
 
     if (!user) {
       return res.status(400).json({ error: "Invalid phone number" });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ error: "Invalid password" });
+    }
+
+    const permissions = user.permissions
+    const role = user.role
+    const token = jwt.sign({ phoneNumber, role, id: user._id }, JWT_SECRET_KEY, {
+      expiresIn: "24h",
+    });
+
+    // Create a user object without password for response
+    const userWithoutPassword = { ...user };
+    delete userWithoutPassword.password;
+
+    res.status(200).json({
+      message: "User Logged in successfully",
+      token,
+      permissions,
+      role,
+      user: userWithoutPassword
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+}
+
+const executiveLogin = async (req, res) => {
+  try {
+    const { phoneNumber, password } = req.body;
+    console.log("phoneNumber: ", phoneNumber)
+
+    const user = await User.findOne({ phoneNumber })
+      .lean();
+    console.log(`user: `, user);
+
+    if (!user) {
+      return res.status(400).json({ error: "Invalid phone number" });
+    }
+
+    if (user.role !== "executive") {
+      return res.status(400).json({ error: "Invalid role" });
     }
 
     // const isMatch = await bcrypt.compare(password, user.password);
@@ -55,23 +101,26 @@ const login = async (req, res) => {
     //   return res.status(400).json({ error: "Invalid password" });
     // }
 
-
-
     const permissions = user.permissions
     const role = user.role
     const token = jwt.sign({ phoneNumber, role, id: user._id }, JWT_SECRET_KEY, {
-      expiresIn: "1h",
+      expiresIn: "24h",
     });
 
+    // Create a user object without password for response
+    const userWithoutPassword = { ...user };
+    delete userWithoutPassword.password;
+
     res.status(200).json({
-      message: "Logged in successfully",
+      message: "Executive Logged in successfully",
       token,
       permissions,
-      role
+      role,
+      user: userWithoutPassword
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 }
 
-module.exports = { signup, login };
+module.exports = { signup, login, executiveLogin };

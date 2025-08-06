@@ -31,6 +31,10 @@ const SlotSchema = new mongoose.Schema({
         type: String,
         required: true,
       },
+      productPrice: {
+        type: String,
+        required: true,
+      },
       quantity: {
         type: Number,
         required: true,
@@ -71,7 +75,7 @@ const orderSchema = new mongoose.Schema({
   },
   executiveId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "User",    
+    ref: "User",
   },
   clientName: {
     type: String,

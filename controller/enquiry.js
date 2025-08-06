@@ -29,6 +29,8 @@ class Enquiry {
       placeaddress,
     } = req.body;
 
+    console.log(`createEnquiry clientId: `, clientId);
+
     console.log(placeaddress);
 
     const processedProducts = products.map(product => ({
@@ -52,6 +54,10 @@ class Enquiry {
       if (executiveId === "") {
         updatedExecutiveId = null;
       }
+
+      const clientIdObj = new mongoose.Types.ObjectId(clientId);
+      console.log(`clientIdObj: `, clientIdObj);
+
 
       // Create a new Enquiry with the incremented enquiryId
       const newEnquiry = new Enquirymodel({
@@ -78,6 +84,7 @@ class Enquiry {
 
       // Save the new Enquiry to the database
       const savedEnquiry = await newEnquiry.save();
+      // console.log(`savedEnquiry: `, savedEnquiry);
 
       if (savedEnquiry) {
         return res.json({ success: "Enquiry created successfully" });
@@ -182,10 +189,28 @@ class Enquiry {
   async allEnquiry(req, res) {
     try {
       const enquiryData = await Enquirymodel.find({}).sort({ _id: -1 });
+      console.log("allEnquiry enquiryData: ", enquiryData.map(item => item.enquiryId));
+
+      if (enquiryData) {
+        return res.status(200).json(enquiryData);
+      }
+    } catch (error) {
+      console.error("Something went wrong", error);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  }
+
+  async getMyEnquiries(req, res) {
+    const { id } = req.params;
+    try {
+      const enquiryData = await Enquirymodel.find({ clientId: id }).sort({ createdAt: -1 }).lean();
+      console.log("getMyEnquiries enquiryData: ", enquiryData.map(item => item.enquiryId));
 
       if (enquiryData) {
         return res.status(200).json({ enquiryData: enquiryData });
       }
+
+      res.json(enquiryData)
     } catch (error) {
       console.error("Something went wrong", error);
       return res.status(500).json({ error: "Internal server error" });

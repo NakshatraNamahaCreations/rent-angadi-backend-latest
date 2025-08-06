@@ -7,11 +7,10 @@ const UserSchema = new mongoose.Schema({
 		required: true,
 		unique: true,
 	},
-	// password: {
-	// 	type: String,
-	// 	required: true,
-	// 	minlength: 6,
-	// },
+	password: {
+		type: String,
+		required: true,
+	},
 	role: {
 		type: String,
 		enum: ['client', 'executive'],
@@ -22,10 +21,10 @@ const UserSchema = new mongoose.Schema({
 		required: true,
 	},
 	email: {
-		type: String,		
+		type: String,
 	},
 	address: {
-		type: String,		
+		type: String,
 	},
 	clientId: {
 		type: mongoose.Schema.Types.ObjectId,
@@ -47,17 +46,17 @@ const UserSchema = new mongoose.Schema({
 	},
 }, { timestamps: true });
 
-UserSchema.pre('save', async function (next) {
-	if (!this.isModified('password')) return next();
+// UserSchema.pre('save', async function (next) {
+// 	if (!this.isModified('password')) return next();
 
-	const salt = await bcrypt.genSalt(10);
-	this.password = await bcrypt.hash(this.password, salt);
-	next();
-});
+// 	const salt = await bcrypt.genSalt(10);
+// 	this.password = await bcrypt.hash(this.password, salt);
+// 	next();
+// });
 
-UserSchema.methods.matchPassword = async function (enteredPassword) {
-	return await bcrypt.compare(enteredPassword, this.password);
-};
+// UserSchema.methods.matchPassword = async function (enteredPassword) {
+// 	return await bcrypt.compare(enteredPassword, this.password);
+// };
 
 const User = mongoose.model('User', UserSchema);
 

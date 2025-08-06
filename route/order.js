@@ -5,7 +5,8 @@ const { userMiddleware } = require("../middleware/clientMiddleware");
 
 router.post("/postaddorder", orderController.postaddorder);
 router.get("/getallorder", orderController.getallorders);
-router.get("/my-orders", userMiddleware, orderController.getMyOrders);
+router.get("/my-orders/:id", orderController.getMyOrders);
+router.get("/my-orders-token", userMiddleware, orderController.getMyOrdersToken);
 router.get("/getOrder/:id", orderController.getOrderById);
 router.get("/getApprovedData", orderController.getApprovedOrders);
 router.get("/TotalNumberOfOrder", orderController.getTotalNumberOfOrder);

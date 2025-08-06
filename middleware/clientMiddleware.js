@@ -1,6 +1,7 @@
 const JWT_SECRET_KEY = require("../config/jwtSecret");
 const jwt = require("jsonwebtoken");
 const User = require("../model/user");
+const AdminModel = require("../model/Auth/adminLogin");
 
 const clientMiddleware = async (req, res, next) => {
   try {
@@ -30,9 +31,37 @@ const clientMiddleware = async (req, res, next) => {
   }
 }
 
+const executiveMiddleware = async (req, res, next) => {
+//   try {
+//     const token = req.headers.authorization?.split(" ")[1]; // Extract token
+//     if (!token) {
+//       return res.status(401).json({ error: "No token provided" });
+//     }
+
+//     // Verify token
+//     const decoded = jwt.verify(token, JWT_SECRET_KEY);
+
+//     const client = await User.findOne({ _id: decoded.id });
+//     if (!client) {
+//       return res.status(401).json({ error: "You are not authenticated" });
+//     }
+
+//     if (decoded.role !== "executive") {
+//       return res.status(401).json({ error: "You are not authenticated" });
+//     }
+//     req.executiveId = decoded.id;
+//     next();
+//   } catch (error) {
+//     if (error.name === "TokenExpiredError") {
+//       return res.status(401).json({ error: "Token expired" });
+//     }
+//     res.status(403).json({ error: "You are not authenticated" });
+//   }
+}
+
 const userMiddleware = async (req, res, next) => {
   try {
-    console.log(`req.headers: `, req.headers);
+    // console.log(`req.headers: `, req.headers);
     const token = req.headers.authorization?.split(" ")[1]; // Extract token
     if (!token) {
       return res.status(401).json({ error: "No token provided" });
@@ -147,4 +176,4 @@ const authorizeRoles = (...allowedRoles) => {
 }
 
 
-module.exports = { clientMiddleware, userMiddleware, adminMiddleware, authenticateClient, authorizeRoles };
+module.exports = { clientMiddleware, executiveMiddleware, userMiddleware, adminMiddleware, authenticateClient, authorizeRoles };

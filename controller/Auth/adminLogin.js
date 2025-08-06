@@ -21,7 +21,7 @@ async function adminSignUp(req, res) {
     });
 
     const token = await jwt.sign({ email }, JWT_SECRET_KEY, {
-      expiresIn: "1h",
+      expiresIn: "24h",
     });
     res.status(201).json({ success: "Admin signed up successfully", token });
   } catch (error) {
@@ -46,10 +46,20 @@ async function adminLogin(req, res) {
 
     const tokenPayload = { email, permissions: admin.permissions };
 
-    const token = jwt.sign(tokenPayload, JWT_SECRET_KEY, { expiresIn: "1h" });
+    const token = jwt.sign(tokenPayload, JWT_SECRET_KEY, { expiresIn: "24h" });
+
+    // token stuff
+    const now = new Date();
+    const twoHoursLater = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2 hours in ms
+
+    // console.log("now time: ", now.toString());
+    // console.log("now time + 2 hours: ", twoHoursLater.toString());
+    // console.log("token expires in: ", token);
+
 
     res.status(200).json({ message: "Logged in successfully", token, permissions: admin.permissions });
   } catch (error) {
+    console.log(`error: `, error);
     res.status(500).json({ error: error.message });
   }
 }

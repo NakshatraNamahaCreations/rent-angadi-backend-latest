@@ -19,6 +19,11 @@ const executiveController = {
         });
       }
 
+      const phoneRegex = /^[6-9]\d{9}$/; // Starts with 6–9 and has 10 digits
+      if (!phoneRegex.test(phoneNumber)) {
+        return res.status(400).json({ message: "Invalid Executive phone number" });
+      }
+
       // Check if client exists
       const client = await User.findById(clientId);
       if (!client) {
@@ -47,18 +52,21 @@ const executiveController = {
         });
       }
 
+      const hashedPassword = await bcrypt.hash(password, 10);
 
       const newExecutive = await User.create([
         {
           phoneNumber,
+          password: hashedPassword,
           name,
           email,
           clientId,
           role: "executive",
           permissions: {
-            addNewEnquiry: true,            
-            }
+            addNewEnquiry: true,
+            viewOrders: true,
           }
+        }
       ], { session });
 
       // await User.updateOne({ _id: clientId }, { $push: { executives: newExecutive._id } }, { session });
@@ -96,7 +104,7 @@ const executiveController = {
       }
 
       const client = await User.findById(clientId)
-        .populate('executives', 'name phoneNumber permissions isActive')
+        .populate('executives', 'name email phoneNumber permissions isActive')
         .lean();
 
       // const users = await User.find({ clientId, role: "executive" })
@@ -147,9 +155,10 @@ const executiveController = {
   },
 
   async updateExecutive(req, res) {
+    const { clientId } = req
     try {
-      const { id, clientId } = req.params;
-      const updates = req.body;
+      const { id } = req.params;
+      const { password, phoneNumber, name, email } = req.body;
 
       // Validate required fields
       if (!clientId) {
@@ -158,30 +167,47 @@ const executiveController = {
         });
       }
 
-      // If password is being updated, hash it
-      if (updates.password) {
-        const salt = await bcrypt.genSalt(10);
-        updates.password = await bcrypt.hash(updates.password, salt);
+      const findExecutive = await User.findOne({
+        _id: id,
+      });
+
+
+      if (!findExecutive) {
+        return res.status(404).json({ message: "Executive not found" })
       }
 
-      const executive = await Executive.findOneAndUpdate(
-        {
-          _id: id,
-          clientId
-        },
-        updates,
-        { new: true, runValidators: true }
-      );
+      if (phoneNumber) {
+        const phoneRegex = /^[6-9]\d{9}$/; // Starts with 6–9 and has 10 digits
+        if (!phoneRegex.test(phoneNumber)) {
+          return res.status(400).json({ error: "Invalid Client phone number" });
+        }
+        if (findExecutive.phoneNumber !== phoneNumber) {
+          const existingUser = await User.findOne({ phoneNumber });
+          if (existingUser) {
+            return res.status(400).json({ error: "Phone number already exists" });
+          }
+        }
 
-      if (!executive) {
-        return res.status(404).json({
-          message: "Executive not found"
-        });
+        findExecutive.phoneNumber = phoneNumber; // Update phone number
       }
+
+      if (password) {
+        if (password.length < 6) {
+          return res.status(400).json({ error: "Password must be at least 6 characters long" });
+        }
+        // Hash the password and update it if provided
+        const hashedPassword = await bcrypt.hash(password, 10);
+        findExecutive.password = hashedPassword;
+      }
+
+      findExecutive.name = name || findExecutive.clientName;
+      findExecutive.email = email || findExecutive.email;
+
+      const updatedData = await findExecutive.save();
 
       res.status(200).json({
         message: "Executive updated successfully",
-        executive
+        data: updatedData
       });
     } catch (error) {
       console.error("Error updating executive:", error);
@@ -194,10 +220,10 @@ const executiveController = {
 
   async deleteExecutive(req, res) {
     try {
-      const { id, clientId } = req.params;
-      const executive = await Executive.findOneAndDelete({
-        _id: id,
-        clientId
+      const { clientId } = req
+      const { id } = req.params;
+      const executive = await User.findOneAndDelete({
+        _id: id
       });
 
       if (!executive) {

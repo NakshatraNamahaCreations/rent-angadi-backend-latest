@@ -90,7 +90,7 @@ class order {
         console.log(" here 1; ",)
 
         for (const product of products) {
-          const { productId, quantity, productName } = product;
+          const { productId, quantity, productName, productEndDate, productQuoteDate } = product;
 
           // Validate product fields
           if (!productId || !quantity || quantity <= 0) {
@@ -133,6 +133,12 @@ class order {
             console.log("findProd.ProductStock: ", findProd.ProductStock, "Number(totalReserved)  : ", Number(totalReserved), "quanity: ", quantity)
             throw new Error(`Insufficient stock for "${productName}" on ${quoteDate}.`);
           }
+
+          product.productPrice = findProd.ProductPrice;
+
+          const rentalDays = moment(productEndDate, "DD-MM-YYYY").diff(moment(productQuoteDate, "DD-MM-YYYY"), "days") + 1;
+          const total = Number(quantity) * Number(product.productPrice) * rentalDays;
+          product.total = total;
 
           // Update or create inventory entry
           if (existingInventory) {
@@ -619,11 +625,12 @@ class order {
 
       order.slots.forEach(slot => {
         slot.products.forEach((prod, index) => {
+          prod.total = 0
           if (prod.productId.toString() === productId.toString()) {
             console.log("existing prod: ", prod)
             const rentalDays = moment(productEndDate, "DD-MM-YYYY").diff(moment(productQuoteDate, "DD-MM-YYYY"), "days") + 1;
             const total = Number(prod.quantity) * Number(findProd.ProductPrice) * rentalDays;
-            prod.total = total;
+            prod.total += total;
             subtotal += total;
             console.log(`UPDATED ${prod.productName} total: `, prod.total, "days: ", rentalDays, 'ProductPrice: ', findProd.ProductPrice, 'prod.quantity: ', prod.quantity)
           } else {
@@ -631,7 +638,7 @@ class order {
             const price = priceMap.get(prod.productId.toString());
             const rentalDays = moment(prod.productEndDate, "DD-MM-YYYY").diff(moment(prod.productQuoteDate, "DD-MM-YYYY"), "days") + 1;
             const total = Number(prod.quantity) * Number(price) * rentalDays;
-            prod.total = total;
+            prod.total += total;
             subtotal += total;
             console.log(`${prod.productName} total: `, prod.total, "days: ", rentalDays, 'ProductPrice: ', price, 'prod.quantity: ', prod.quantity)
           }
@@ -770,13 +777,18 @@ class order {
       } else {
         throw new Error("Cannot update: Available Stock is less than desired quantity");
       }
+      
+
+      // const rentalDays = moment(productEndDate, "DD-MM-YYYY").diff(moment(productQuoteDate, "DD-MM-YYYY"), "days") + 1;
+      const total = Number(quantity) * Number(findProd.ProductPrice) * rentalDays;
+      // product.total = total;
 
       const addProduct = {
         productId,
         productName,
         quantity,
-        // price: Number(unitPrice), // Price fetched from findProd
-        total: Number(quantity) * findProd.ProductPrice, // Initial total
+        productPrice: findProd.ProductPrice,
+        total,
         productQuoteDate, productEndDate, productSlot
       };
       slot.products.push(addProduct);
@@ -796,11 +808,12 @@ class order {
 
       order.slots.forEach(slot => {
         slot.products.forEach((prod, index) => {
+          prod.total = 0
           if (prod.productId.toString() === productId.toString()) {
             // console.log("existing prod: ", prod)
             const rentalDays = moment(productEndDate, "DD-MM-YYYY").diff(moment(productQuoteDate, "DD-MM-YYYY"), "days") + 1;
             const total = Number(prod.quantity) * Number(findProd.ProductPrice) * rentalDays;
-            prod.total = total;
+            prod.total += total;
             subtotal += total;
             console.log(`ADDED ${prod.productName} total: `, prod.total, "days: ", rentalDays, 'ProductPrice: ', findProd.ProductPrice, 'prod.quantity: ', prod.quantity)
           } else {
@@ -808,7 +821,7 @@ class order {
             const price = priceMap.get(prod.productId.toString());
             const rentalDays = moment(prod.productEndDate, "DD-MM-YYYY").diff(moment(prod.productQuoteDate, "DD-MM-YYYY"), "days") + 1;
             const total = Number(prod.quantity) * Number(price) * rentalDays;
-            prod.total = total;
+            prod.total += total;
             subtotal += total;
             console.log(`${prod.productName} total: `, prod.total, "days: ", rentalDays, 'ProductPrice: ', price, 'prod.quantity: ', prod.quantity)
           }
@@ -1067,6 +1080,51 @@ class order {
   }
 
   async getMyOrders(req, res) {
+    const { id } = req.params;
+    // const { clientId } = req;
+    const objClientId = new mongoose.Types.ObjectId(id);
+    console.log(`clientId: `, id);
+
+    try {
+      console.time('myOrders')
+      // const data = await ordermodel.find({ clientId }).sort({ _id: -1 }).lean();
+      // const total = await ordermodel.countDocuments({ clientId }).lean();
+
+      const aggregationPipeline = [
+        { $match: { clientId: objClientId } }, // Match the documents based on `clientId`
+        { $sort: { createdAt: -1 } }, {    // Sort the documents by `_id` in descending order
+          $lookup: {
+            from: "products",  // The collection to lookup (products)
+            localField: "slots.products.productId",  // Local field to match with foreign field in Product collection
+            foreignField: "_id",  // Field in Product collection that we match against
+            as: "productDetails"  // Name of the field where product details will be stored
+          },
+        }, {
+          $facet: {
+            total: [{ $count: "totalCount" }],   // Get the total count of documents
+            data: [{ $skip: 0 }] // You can change the skip/limit based on your pagination
+          }
+        }
+      ];
+
+      const result = await ordermodel.aggregate(aggregationPipeline);
+      console.log(`result: `, result);
+
+      const data = result[0].data;  // The documents you wanted to fetch
+      const total = result[0].total[0]?.totalCount || 0;  // The total count
+
+      console.timeEnd('myOrders')
+      if (data) {
+        return res.status(200).json({ total, orderData: data });
+      } else {
+        return res.status(404).json({ error: "No orders found" });
+      }
+    } catch (error) {
+      return res.status(500).json({ error: "Failed to retrieve orders" });
+    }
+  }
+
+  async getMyOrdersToken(req, res) {
     const { clientId } = req;
     const objClientId = new mongoose.Types.ObjectId(clientId);
     console.log(`clientId: `, clientId);
@@ -1080,14 +1138,51 @@ class order {
         { $match: { clientId: objClientId } }, // Match the documents based on `clientId`
         { $sort: { _id: -1 } },    // Sort the documents by `_id` in descending order
         {
+          $lookup: {
+            from: "products",  // The collection to lookup (products)
+            localField: "slots.products.productId",  // Local field to match with foreign field in Product collection
+            foreignField: "_id",  // Field in Product collection that we match against
+            as: "productDetails"  // Name of the field where product details will be stored
+          }
+          // $addFields: {
+          //   products: {
+          //     $map: {
+          //       input: '$products',
+          //       as: 'product',
+          //       in: {
+          //         $mergeObjects: [
+          //           '$$product',
+          //           {
+          //             $arrayElemAt: [
+          //               {
+          //                 $filter: {
+          //                   input: '$productDetails',
+          //                   as: 'detail',
+          //                   cond: {
+          //                     $eq: ['$$detail._id', '$$product.productId']
+          //                   }
+          //                 }
+          //               },
+          //               0
+          //             ]
+          //           }
+          //         ]
+          //       }
+          //     }
+          //   }
+          // }
+        },
+        {
           $facet: {
             total: [{ $count: "totalCount" }],   // Get the total count of documents
-            data: [{ $skip: 0 }, { $limit: 10 }] // You can change the skip/limit based on your pagination
+            data: [{ $skip: 0 },] // You can change the skip/limit based on your pagination
           }
         }
       ];
 
       const result = await ordermodel.aggregate(aggregationPipeline);
+      // console.log(`result: `, result);
+      // console.log(`result: `, JSON.stringify(result, null, 2));
 
       const data = result[0].data;  // The documents you wanted to fetch
       const total = result[0].total[0]?.totalCount || 0;  // The total count
