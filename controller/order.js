@@ -525,6 +525,8 @@ class order {
     console.log("inside updateOrderById")
     const { id } = req.params
     const { productId, quantity, quoteDate, endDate, productQuoteDate, productEndDate, productSlot } = req.body;
+    // console.log({ productId, quantity, quoteDate, endDate, productQuoteDate, productEndDate, productSlot })
+    // console.log(`typesof: `, typeof (quantity))
 
     // Start a new session for the transaction
     const session = await mongoose.startSession();
@@ -541,11 +543,9 @@ class order {
           message: `Order not found`
         });
       }
-      console.log({ productId, quantity, quoteDate, endDate, productQuoteDate, productEndDate, productSlot })
-      console.log(`typesof : `, typeof (quantity))
 
       // checking the inventories
-      const allInventories = await InventoryModel.find({ productId: productId }).session(session);
+      const allInventories = await InventoryModel.find({ productId }).session(session);
 
       const inventory = await InventoryModel.findOne({
         productId,
@@ -629,7 +629,11 @@ class order {
           if (prod.productId.toString() === productId.toString()) {
             console.log("existing prod: ", prod)
             const rentalDays = moment(productEndDate, "DD-MM-YYYY").diff(moment(productQuoteDate, "DD-MM-YYYY"), "days") + 1;
-            const total = Number(prod.quantity) * Number(findProd.ProductPrice) * rentalDays;
+            // const total = Number(prod.quantity) * Number(findProd.ProductPrice) * rentalDays;
+            const total = Number(prod.quantity) * Number(prod.productPrice) * rentalDays;
+            prod.productQuoteDate = productQuoteDate
+            prod.productEndDate = productEndDate
+            prod.productSlot = productSlot
             prod.total += total;
             subtotal += total;
             console.log(`UPDATED ${prod.productName} total: `, prod.total, "days: ", rentalDays, 'ProductPrice: ', findProd.ProductPrice, 'prod.quantity: ', prod.quantity)
@@ -637,7 +641,8 @@ class order {
             // Use already-stored total
             const price = priceMap.get(prod.productId.toString());
             const rentalDays = moment(prod.productEndDate, "DD-MM-YYYY").diff(moment(prod.productQuoteDate, "DD-MM-YYYY"), "days") + 1;
-            const total = Number(prod.quantity) * Number(price) * rentalDays;
+            // const total = Number(prod.quantity) * Number(price) * rentalDays;
+            const total = Number(prod.quantity) * Number(prod.productPrice) * rentalDays;
             prod.total += total;
             subtotal += total;
             console.log(`${prod.productName} total: `, prod.total, "days: ", rentalDays, 'ProductPrice: ', price, 'prod.quantity: ', prod.quantity)
@@ -777,7 +782,7 @@ class order {
       } else {
         throw new Error("Cannot update: Available Stock is less than desired quantity");
       }
-      
+
 
       // const rentalDays = moment(productEndDate, "DD-MM-YYYY").diff(moment(productQuoteDate, "DD-MM-YYYY"), "days") + 1;
       const total = Number(quantity) * Number(findProd.ProductPrice) * rentalDays;

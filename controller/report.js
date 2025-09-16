@@ -119,6 +119,11 @@ class report {
     }
   }
 
+  /*
+  * get order deetails
+  * were using price form saved order.product.productPrice
+  *   
+  */
   async productReportByMonth(req, res) {
     try {
       // Extract month and year from request parameters (e.g., "2025-06")
@@ -131,11 +136,12 @@ class report {
       }
 
       // Fetch all products with their prices first
-      const allProducts = await Product.find({}).select("ProductPrice").lean();
-      const productPriceMap = new Map(allProducts.map(p => [p._id.toString(), Number(p.ProductPrice)]));
+      // const allProducts = await Product.find({}).select("ProductPrice").lean();
+      // const productPriceMap = new Map(allProducts.map(p => [p._id.toString(), Number(p.ProductPrice)]));
 
       // Fetch orders
-      const orders = await Order.find({}).lean().sort({ createdAt: -1 });
+      const orders = await Order.find({ orderStatus: 'Confirm' }).lean().sort({ createdAt: -1 });
+      // const orders = await Order.find({}).lean().sort({ createdAt: -1 });
 
       // Create a month-wise report object
       const monthWiseReport = {};
@@ -175,6 +181,7 @@ class report {
           // Calculate days including both start and end dates
           const totalDays = Math.ceil((endDate - quoteDate) / (24 * 60 * 60 * 1000)) + 1;
           const productTotal = quantity * product.productPrice * totalDays * (1 - order.discount / 100);
+          // console.log(`${product.productName}: `, { totalDays, productTotal, discount: order.discount }, (1 - order.discount / 100))
 
           // Update product totals
           if (!monthWiseReport[monthKey].products.has(product.productName)) {
@@ -200,11 +207,11 @@ class report {
         totalRevenue: data.totalRevenue,
         products: Array.from(data.products.entries())
           .map(([productName, stats]) => {
-            const unitPrice = productPriceMap.get(stats.productId.toString()) || 0;
+            // const unitPrice = productPriceMap.get(stats.productId.toString()) || 0;
             return {
               name: productName,
               totalRevenue: stats.totalRevenue,
-              price: unitPrice,
+              // price: stats.productPrice,
               quantity: stats.quantity,
               days: stats.days
             };
@@ -235,6 +242,7 @@ class report {
 
       // Fetch orders for the specified clients
       const orders = await Order.find({
+        orderStatus: 'Confirm',
         clientId: { $in: clientIdObjs },
         slots: {
           $elemMatch: {
@@ -251,7 +259,7 @@ class report {
       }
 
       // Create a month-wise report object
-      const monthWiseReport = {        
+      const monthWiseReport = {
         totalRevenue: 0,
         totalDiscount: 0,
         totalRoundOff: 0,

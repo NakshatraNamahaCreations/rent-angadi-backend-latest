@@ -371,6 +371,116 @@ class Quotations {
   }
   // 15-03-25
 
+
+  async updateQuotationById(req, res) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      const { quotationId } = req.params;
+      const {
+        labourecharge,
+        transportcharge,
+        refurbishment,
+        discount,
+        slots,
+        GrandTotal
+      } = req.body;
+      console.log({
+        labourecharge,
+        transportcharge,
+        refurbishment,
+        discount,
+        slots,
+        GrandTotal
+      });
+
+      const quotation = await Quotationmodel.findById(quotationId).session(session);
+      if (!quotation) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(404).json({ error: "Quotation not found" });
+      }
+
+      const quoteDate = quotation.quoteDate;
+      const endDate = quotation.endDate;
+      if (!quoteDate || !endDate) {
+        throw new Error("Quotation dates are missing. Cannot validate inventory.");
+      }
+
+      if (!Array.isArray(slots)) {
+        throw new Error("Slots must be a valid array");
+      }
+
+      // Validate inventory for all provided slots/products
+      if (slots.length !== 0) {
+        const { Products = [] } = slots[0];
+        for (const product of Products) {
+          const { productId, quantity } = product;
+          if (!productId) {
+            throw new Error("Product productId is required in slots.Products");
+          }
+
+          const productDetails = await ProductModel.findById(productId).lean();
+          if (!productDetails) {
+            throw new Error(`Product not found: ${productId}`);
+          }
+
+          const start = parseDate(String(quoteDate).trim());
+          const end = parseDate(String(endDate).trim());
+
+          const inventory = await InventoryModel.find({ productId }).session(session);
+          const overlappingInventory = inventory.filter((item) => {
+            const inventoryStartDate = parseDate(item.startdate);
+            const inventoryEndDate = parseDate(item.enddate);
+            return inventoryStartDate <= end && inventoryEndDate >= start;
+          });
+
+          const totalReservedQty = overlappingInventory.reduce(
+            (sum, reservation) => sum + (reservation.reservedQty || 0),
+            0
+          );
+
+          const baseStock = Number(productDetails.ProductStock) || 0;
+          const availableStock = Math.max(baseStock - totalReservedQty, 0);
+
+          if (Number(quantity) > availableStock) {
+            throw new Error(
+              `Insufficient stock for product: ${productDetails.ProductName || productId}. Requested: ${quantity}, Available: ${availableStock} for ${quoteDate} to ${endDate}.`
+            );
+          }
+        }
+        // Update slots/products (replace with provided slots)
+        if (Array.isArray(slots)) {
+          quotation.slots = slots;
+        }
+      }
+
+      // Apply field updates
+      if (labourecharge !== undefined) quotation.labourecharge = labourecharge;
+      if (transportcharge !== undefined) quotation.transportcharge = transportcharge;
+      if (refurbishment !== undefined) quotation.refurbishment = refurbishment;
+      if (discount !== undefined) quotation.discount = discount;
+      if (GrandTotal !== undefined) quotation.GrandTotal = GrandTotal;
+
+
+
+      await quotation.save({ session });
+
+      await session.commitTransaction();
+      session.endSession();
+
+      return res.json({ success: "Quotation updated successfully", data: quotation });
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      console.error("Error updated quotation:", error);
+      return res
+        .status(500)
+        .json({ error: error.message || "Failed to updated Quotation" });
+    }
+  }
+
   async getTotalAndTodayQuotationCount(req, res) {
     try {
       // Get the current date and set the time to the start of the day
@@ -520,78 +630,79 @@ class Quotations {
       // Fetch all quotations as plain JavaScript objects
       const quoteData = await Quotationmodel.find({}).sort({ _id: -1 }).lean();
 
-      // Loop through each quotation to enrich slots with inventory data
-      const enrichedQuotations = await Promise.all(quoteData.map(async (quote) => {
-        const enrichedSlots = await Promise.all(quote.slots.map(async (slot) => {
-          const enrichedProducts = await Promise.all(slot.Products.map(async (product) => {
-            // Fetch product details including ProductIcon
-            const productDetails = await ProductModel.findOne({ _id: product.productId }).lean();
+      // // Loop through each quotation to enrich slots with inventory data
+      // const enrichedQuotations = await Promise.all(quoteData.map(async (quote) => {
+      //   const enrichedSlots = await Promise.all(quote.slots.map(async (slot) => {
+      //     const enrichedProducts = await Promise.all(slot.Products.map(async (product) => {
+      //       // Fetch product details including ProductIcon
+      //       const productDetails = await ProductModel.findOne({ _id: product.productId }).lean();
 
-            // Fetch overlapping inventory for the product, slot, and date range
-            const overlappingReservations = await InventoryModel.find({
-              productId: product.productId,
-              $or: [
-                {
-                  startdate: { $lte: quote.endDate },
-                  enddate: { $gte: quote.quoteDate },
-                },
-              ],
-              slot: slot.slotName,
-            });
+      //       // Fetch overlapping inventory for the product, slot, and date range
+      //       const overlappingReservations = await InventoryModel.find({
+      //         productId: product.productId,
+      //         $or: [
+      //           {
+      //             startdate: { $lte: quote.endDate },
+      //             enddate: { $gte: quote.quoteDate },
+      //           },
+      //         ],
+      //         slot: slot.slotName,
+      //       });
 
-            // Calculate total reserved inventory
-            const totalReservedQty = overlappingReservations.reduce(
-              (sum, reservation) => sum + reservation.reservedQty,
-              0
-            );
+      //       // Calculate total reserved inventory
+      //       const totalReservedQty = overlappingReservations.reduce(
+      //         (sum, reservation) => sum + reservation.reservedQty,
+      //         0
+      //       );
 
-            const availableStock =
-              product.StockAvailable - totalReservedQty;
+      //       const availableStock =
+      //         product.StockAvailable - totalReservedQty;
 
-            // Determine status
-            let status = "Not Available";
-            if (availableStock > 0) {
-              status = "Available";
-            } else if (totalReservedQty >= product.StockAvailable) {
-              status = "Booked";
-            }
+      //       // Determine status
+      //       let status = "Not Available";
+      //       if (availableStock > 0) {
+      //         status = "Available";
+      //       } else if (totalReservedQty >= product.StockAvailable) {
+      //         status = "Booked";
+      //       }
 
-            // Get only essential product details including ProductIcon
-            const essentialProduct = {
-              productId: product.productId,
-              productName: product.productName || product.name,
-              price: product.price,
-              quantity: product.quantity || product.qty,
-              total: product.total,
-              ProductIcon: productDetails?.ProductIcon || null,
-              availableStock,
-              status
-            };
+      //       // Get only essential product details including ProductIcon
+      //       const essentialProduct = {
+      //         productId: product.productId,
+      //         productName: product.productName || product.name,
+      //         price: product.price,
+      //         quantity: product.quantity || product.qty,
+      //         total: product.total,
+      //         ProductIcon: productDetails?.ProductIcon || null,
+      //         availableStock,
+      //         status
+      //       };
 
-            return essentialProduct;
-          }));
+      //       return essentialProduct;
+      //     }));
 
-          // Check if the slot has at least one available product
-          const hasAvailableProducts = enrichedProducts.some(
-            (product) => product.status === "Available"
-          );
+      //     // Check if the slot has at least one available product
+      //     const hasAvailableProducts = enrichedProducts.some(
+      //       (product) => product.status === "Available"
+      //     );
 
-          return {
-            ...slot,
-            Products: enrichedProducts,
-            status: hasAvailableProducts ? "Available" : "Not Available",
-          };
-        })
-        );
+      //     return {
+      //       ...slot,
+      //       Products: enrichedProducts,
+      //       status: hasAvailableProducts ? "Available" : "Not Available",
+      //     };
+      //   })
+      //   );
 
-        return {
-          ...quote,
-          slots: enrichedSlots,
-        };
-      })
-      );
+      //   return {
+      //     ...quote,
+      //     slots: enrichedSlots,
+      //   };
+      // })
+      // );      
 
-      return res.status(200).json({ quoteData: enrichedQuotations });
+      // return res.status(200).json({ quoteData: enrichedQuotations });
+      return res.status(200).json({ quoteData });
     } catch (error) {
       console.error("Something went wrong", error);
       return res.status(500).json({ error: "Internal server error" });
@@ -687,7 +798,8 @@ class Quotations {
               return {
                 productId: product.productId,
                 productName: product.productName || product.name || productDetails?.name || "Unnamed Product",
-                price: product.price,
+                // price: product.price,
+                price: productDetails.ProductPrice,
                 quantity: product.quantity || product.qty,
                 total: product.total,
                 ProductIcon: productDetails?.ProductIcon || null,

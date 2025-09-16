@@ -8,3 +8,5 @@ tests/
 dist/
 scripts/
 *.rar
+deploy/
+docs/

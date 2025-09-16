@@ -13,7 +13,7 @@ const clientMiddleware = async (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(token, JWT_SECRET_KEY);
 
-    const client = await Clientmodel.findOne({ _id: decoded.clientId });
+    const client = await User.findOne({ phoneNUmber: decoded.phoneNUmber });
     if (!client) {
       return res.status(401).json({ error: "You are not authenticated" });
     }
@@ -21,7 +21,8 @@ const clientMiddleware = async (req, res, next) => {
     if (decoded.role !== "client") {
       return res.status(401).json({ error: "You are not authenticated" });
     }
-    req.clientId = decoded.clientId;
+    req.clientId = client.id;
+    req.params.clientId = client.id;    //this specificvally fr getMyEnquiries()
     next();
   } catch (error) {
     if (error.name === "TokenExpiredError") {

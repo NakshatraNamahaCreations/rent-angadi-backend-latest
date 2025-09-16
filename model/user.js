@@ -38,6 +38,7 @@ const UserSchema = new mongoose.Schema({
 	permissions: {
 		addNewEnquiry: { type: Boolean, default: false },
 		executiveManagement: { type: Boolean, default: false },
+		enquiryList: { type: Boolean, default: true },
 		viewOrders: { type: Boolean, default: false },
 	},
 	isActive: {

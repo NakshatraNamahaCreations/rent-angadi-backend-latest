@@ -5,6 +5,7 @@ const Inventory = require("../model/inventory");
 const Clientmodel = require("../model/clients");
 const Quotationmodel = require("../model/quotations");
 const ProductManagementModel = require("../model/product");
+const { compareDates } = require("../utils/dateString");
 
 class Enquiry {
   async createEnquiry(req, res) {
@@ -32,6 +33,11 @@ class Enquiry {
     console.log(`createEnquiry clientId: `, clientId);
 
     console.log(placeaddress);
+
+    const areDatesValid = compareDates(endDate, enquiryDate)
+    if (!areDatesValid) {
+      return res.status(400).json({ error: "Dismantle Date must be same or less than Delivery Date" })
+    }
 
     const processedProducts = products.map(product => ({
       ...product,

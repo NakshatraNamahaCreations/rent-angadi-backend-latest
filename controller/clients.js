@@ -60,6 +60,19 @@ class Clients {
         return res.status(400).json({ error: "Phone number already exists" });
       }
 
+      const normalizedClientName = clientName.trim();
+
+      // ✅ Case-insensitive check
+      const existingName = await User.findOne({
+        name: { $regex: `^${normalizedClientName}$`, $options: "i" },
+        role: "client"
+      });
+
+      if (existingName) {
+        return res.status(400).json({ error: "Client name already exists" });
+      }
+
+
       // Validate password length
       if (clientPassword.length < 6) {
         return res.status(400).json({ error: "Password must be at least 6 characters long" });
@@ -70,14 +83,15 @@ class Clients {
       const newClient = new User({
         phoneNumber,
         password: hashedPassword,
-        name: clientName,
+        name: normalizedClientName,
         email,
         address,
         activeStatus,
         role: "client",
         permissions: {
-          // addNewEnquiry: false,
+          addNewEnquiry: true,
           executiveManagement: true,
+          enquiryList: true,
           viewOrders: true,
         }
       });
@@ -95,7 +109,7 @@ class Clients {
       return res.json({ success: "Client added successfully", client: savedClient });
     } catch (error) {
       console.error("Error creating client:", error);
-      return res.status(500).json({ error: "Failed to add Client" });
+      return res.status(500).json({ error });
     }
   }
 
@@ -267,7 +281,11 @@ class Clients {
   async getallClients(req, res) {
     try {
       const clients = await User.find({ role: "client" })
-        .populate('executives')
+        .populate({
+          path: 'executives',
+          select: '-password', // Exclude password from executives
+        })
+        .select('-password') // Exclude password from the client itself
         .sort({ createdAt: -1 })
         .lean();
       if (clients && clients.length > 0) {
@@ -418,7 +436,7 @@ class Clients {
   async getTotalNumberOfClients(req, res) {
     try {
       // Use await correctly with the countDocuments() method
-      let clientCount = await Clientmodel.countDocuments({});
+      let clientCount = await User.countDocuments({ role: "client" });
       // Check if the count is not zero (though it would still return 0 if no documents are found)
       if (clientCount !== null) {
         return res.json({ clientCount: clientCount });
@@ -432,7 +450,7 @@ class Clients {
 
   async getClientsNames(req, res) {
     try {
-      let Client = await Clientmodel.find({})
+      let Client = await User.find({ role: "client" })
       if (Client) {
         return res.json({ ClientNames: Client });
       } else {
@@ -479,7 +497,7 @@ class Clients {
     } catch (error) {
       await session.abortTransaction();
       console.error("Error deleting client:", error);
-      return res.status(500).json({ error: "Failed to delete client and executives" });
+      return res.status(500).json({ error });
     } finally {
       session.endSession();
     }

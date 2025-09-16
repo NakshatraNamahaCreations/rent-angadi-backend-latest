@@ -64,6 +64,7 @@ const executiveController = {
           role: "executive",
           permissions: {
             addNewEnquiry: true,
+            enquiryList: true,
             viewOrders: true,
           }
         }

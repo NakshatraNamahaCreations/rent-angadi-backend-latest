@@ -96,10 +96,10 @@ const executiveLogin = async (req, res) => {
       return res.status(400).json({ error: "Invalid role" });
     }
 
-    // const isMatch = await bcrypt.compare(password, user.password);
-    // if (!isMatch) {
-    //   return res.status(400).json({ error: "Invalid password" });
-    // }
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ error: "Invalid password" });
+    }
 
     const permissions = user.permissions
     const role = user.role

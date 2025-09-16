@@ -114,6 +114,7 @@ const QuotationSchema = new mongoose.Schema({
   },
   labourecharge: { type: Number, default: 0 },
   transportcharge: { type: Number, default: 0 },
+  refurbishment: { type: Number, default: 0 },
   placeaddress: {
     type: String
   },
