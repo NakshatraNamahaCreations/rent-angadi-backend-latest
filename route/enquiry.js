@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const EnquiryController = require("../controller/enquiry");
-const { userMiddleware } = require("../middleware/clientMiddleware");
+const { userMiddleware, clientMiddleware } = require("../middleware/clientMiddleware");
 
 router.post("/createEnquiry", EnquiryController.createEnquiry);
 router.get(

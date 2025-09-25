@@ -332,6 +332,108 @@ class ProductManagement {
     }
   }
 
+  async getMismatchedProducts(req, res) {
+    try {
+
+      const query = {
+        // $expr: { $ne: ["$qty", "$ProductStock"] },
+        $expr: {
+          $ne: [{ $toInt: "$qty" }, "$ProductStock"],
+        },
+      };
+
+      // // Fields you want to show
+      // const projection = {
+      //   ProductName: 1,
+      //   ProductSKU: 1,
+      //   qty: 1,
+      //   ProductStock: 1,
+      //   StockAvailable: 1,
+      //   ProductStatus: 1,
+      // };
+
+      // const mismatchedProducts = await ProductManagementModel.find(query, projection).lean();
+      const mismatchedProducts = await ProductManagementModel.find(query).lean();
+
+      console.log(`Mismatched products count: ${mismatchedProducts.length}`);
+      // console.log(JSON.stringify(mismatchedProducts, null, 2));
+      console.log(`mismatchedProducts prods: `, mismatchedProducts.map(item => [item._id, item.ProductName, item.ProductStock, item.qty]));
+      console.log(`end `,);
+
+      return res.status(200).json({
+        message: "mismatchedProducts Fetched successfully",
+        data: mismatchedProducts,
+      });
+    }
+    catch (error) {
+      console.log(`err: `, error);
+      return res.status(500).json({ error });
+      return res.status(500).json({ error: "Failed to fetch damaged products" });
+    }
+  }
+
+  async getDamagedProducts0(req, res) {
+    try {
+
+      const query = {
+        // $expr: { $ne: ["$qty", "$ProductStock"] },
+        $expr: {
+          $ne: [{ $toInt: "$qty" }, "$ProductStock"],
+        },
+      };
+
+      // Fields you want to show
+      const projection = {
+        ProductName: 1,
+        ProductSKU: 1,
+        qty: 1,
+        ProductStock: 1,
+        StockAvailable: 1,
+        ProductStatus: 1,
+      };
+
+      const mismatchedProducts = await ProductManagementModel.find(query, projection).lean();
+      // const mismatchedProducts = await Product.find(query).lean();
+
+      console.log(`Mismatched products count: ${mismatchedProducts.length}`);
+      // console.log(JSON.stringify(mismatchedProducts, null, 2));
+      console.log(`damaged prods: `, mismatchedProducts.map(item => [item._id, item.ProductName, item.ProductStock, item.qty]));      
+
+      return res.status(200).json({
+        message: "Product updated successfully",
+        data: mismatchedProducts,
+      });
+    }
+    catch (error) {
+      console.log(`err: `, error);
+      return res.status(500).json({ error });
+      return res.status(500).json({ error: "Failed to fetch damaged products" });
+    }
+  }
+
+  async getDamagedProducts(req, res) {
+    try {
+
+      const damagedProducts = await ProductManagementModel.find({
+        $or: [
+          { lostCount: { $gt: 0 } },
+          { repairCount: { $gt: 0 } }
+        ]
+      }).lean();
+             
+
+      return res.status(200).json({
+        message: "Product damaged data fetched successfully",
+        data: damagedProducts,
+      });
+    }
+    catch (error) {
+      console.log(`err: `, error);
+      return res.status(500).json({ error });
+      return res.status(500).json({ error: "Failed to fetch damaged products" });
+    }
+  }
+
   async editDamagedProductManagement(req, res) {
     const { productId, repairCount, lostCount, repairDescription } = req.body;
 
@@ -705,6 +807,7 @@ class ProductManagement {
   }
 
   async getProductById(req, res) {
+    console.log(`getprodutcbyid `,);
     const { id } = req.params;
 
     try {

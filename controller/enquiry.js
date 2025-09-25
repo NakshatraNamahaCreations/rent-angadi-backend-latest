@@ -269,6 +269,7 @@ class Enquiry {
 
         if (enquiryData.status === "sent") {
           const quotationData = await Quotationmodel.findOne({ enquiryId: enquiryData.enquiryId });
+          console.log(`quotationData: `, quotationData);
 
           const quotationEnrichedResponse = {
             ...enquiryData.toObject(),  // convert Mongoose doc to plain object
