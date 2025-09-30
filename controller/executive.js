@@ -13,9 +13,9 @@ const executiveController = {
       const { clientId } = req;
 
       // Validate required fields
-      if (!password || !phoneNumber || !name || !email || !clientId) {
+      if (!password || !phoneNumber || !name || !clientId) {
         return res.status(400).json({
-          message: "All fields (password, phoneNumber, name, email, clientId) are required"
+          message: "All fields (password, phoneNumber, name, clientId) are required"
         });
       }
 

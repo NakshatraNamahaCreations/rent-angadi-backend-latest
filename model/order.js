@@ -2,10 +2,10 @@ const mongoose = require("mongoose");
 const { parse } = require("date-fns");
 
 const SlotSchema = new mongoose.Schema({
-  // slotName: {
-  //   type: String,
-  //   required: true,
-  // },
+  slotName: {
+    type: String,
+    required: true,
+  },
   quoteDate: {
     type: String,
     required: true,
@@ -186,23 +186,39 @@ const orderSchema = new mongoose.Schema({
 orderSchema.pre("save", function (next) {
   if (this.slots && this.slots.length > 0) {
     this.slots = this.slots.map((slot) => {
+      // Ensure slot is plain object
       const updatedSlot = slot.toObject ? slot.toObject() : slot;
-
-      // Convert quoteDate
+      
       if (updatedSlot.quoteDate && !updatedSlot.quoteDateObj) {
         try {
-          updatedSlot.quoteDateObj = parse(updatedSlot.quoteDate, "dd-MM-yyyy", new Date());
+          // Parse "dd-MM-yyyy"
+          const parsedDate = parse(updatedSlot.quoteDate, "dd-MM-yyyy", new Date());
+
+          // ✅ Normalize to UTC midnight
+          updatedSlot.quoteDateObj = new Date(Date.UTC(parsedDate.getFullYear(), parsedDate.getMonth(), parsedDate.getDate()));
         } catch (e) {
-          console.error("Invalid quoteDate:", updatedSlot.quoteDate);
+          console.error("Invalid quoteDate:", updatedSlot.quoteDate, e);
         }
       }
-
-      // Convert endDate
+      
       if (updatedSlot.endDate && !updatedSlot.endDateObj) {
         try {
-          updatedSlot.endDateObj = parse(updatedSlot.endDate, "dd-MM-yyyy", new Date());
+          const parsedEndDate = parse(
+            updatedSlot.endDate,
+            "dd-MM-yyyy",
+            new Date()
+          );
+
+          // Normalize to UTC midnight
+          updatedSlot.endDateObj = new Date(
+            Date.UTC(
+              parsedEndDate.getFullYear(),
+              parsedEndDate.getMonth(),
+              parsedEndDate.getDate()
+            )
+          );
         } catch (e) {
-          console.error("Invalid endDate:", updatedSlot.endDate);
+          console.error("Invalid endDate:", updatedSlot.endDate, e);
         }
       }
 
