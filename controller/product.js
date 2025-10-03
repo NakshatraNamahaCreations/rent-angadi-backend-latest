@@ -397,7 +397,7 @@ class ProductManagement {
 
       console.log(`Mismatched products count: ${mismatchedProducts.length}`);
       // console.log(JSON.stringify(mismatchedProducts, null, 2));
-      console.log(`damaged prods: `, mismatchedProducts.map(item => [item._id, item.ProductName, item.ProductStock, item.qty]));      
+      console.log(`damaged prods: `, mismatchedProducts.map(item => [item._id, item.ProductName, item.ProductStock, item.qty]));
 
       return res.status(200).json({
         message: "Product updated successfully",
@@ -420,7 +420,7 @@ class ProductManagement {
           { repairCount: { $gt: 0 } }
         ]
       }).lean();
-             
+
 
       return res.status(200).json({
         message: "Product damaged data fetched successfully",
@@ -462,11 +462,21 @@ class ProductManagement {
         return res.status(404).json({ error: "Product not found" });
       }
 
-      updatedProduct.ProductStock = Number(updatedProduct.qty) - (Number(updatedProduct.repairCount) + Number(updatedProduct.lostCount));
+      // updatedProduct.ProductStock = Number(updatedProduct.qty) - (Number(updatedProduct.repairCount) + Number(updatedProduct.lostCount));
+
+      const totalDamaged = Number(updatedProduct.repairCount) + Number(updatedProduct.lostCount);
+      const updatedStock = Number(updatedProduct.qty) - totalDamaged;
+
+      if (updatedStock < 0) {
+        await session.abortTransaction();
+        return res.status(400).json({
+          error: "Damaged + Lost quantity must be less than Total Qty"
+        });
+      }
 
       const updatedProductStock = await ProductManagementModel.findByIdAndUpdate(
         { _id: productId },
-        { ProductStock: updatedProduct.ProductStock },
+        { ProductStock: updatedStock },
         { new: true }
       ).session(session);
 

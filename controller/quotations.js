@@ -7,6 +7,10 @@ const cache = new NodeCache({ stdTTL: 100, checkperiod: 120 });
 const moment = require("moment");
 const { parseDate } = require("../utils/dateString");
 const Enquirymodel = require("../model/enquiry");
+const dayjs = require('dayjs'); // Import Day.js
+const customParseFormat = require('dayjs/plugin/customParseFormat');
+dayjs.extend(customParseFormat); // To support custom date formats like 'DD-MM-YYYY'
+
 
 class Quotations {
   // async createQuotations(req, res) {
@@ -446,12 +450,36 @@ class Quotations {
 
           if (Number(quantity) > availableStock) {
             throw new Error(
-              `Insufficient stock for product: ${productDetails.ProductName || productId}. Requested: ${quantity}, Available: ${availableStock} for ${quoteDate} to ${endDate}.`
+              // `Insufficient stock for product: ${productDetails.ProductName || productId}. Requested: ${quantity}, Available: ${availableStock} for ${quoteDate} to ${endDate}.`
+              `Insufficient stock for product: ${productDetails.ProductName || productId}.`
             );
           }
         }
         // Update slots/products (replace with provided slots)
         if (Array.isArray(slots)) {
+          // console.log(`slots[0].Products: `, slots[0].Products);
+          slots[[0]].Products.forEach((product, index) => {
+            const quoteDate = dayjs(product.productQuoteDate, 'DD-MM-YYYY', true);
+            const endDate = dayjs(product.productEndDate, 'DD-MM-YYYY', true);
+
+            // console.log(`quoteDate: `, quoteDate, `endDate: `, endDate);
+            // console.log(quoteDate.format('YYYY-MM-DD'));
+            // console.log(endDate.format('YYYY-MM-DD'));
+
+            if (!quoteDate.isValid() || !endDate.isValid()) {
+              // throw new Error(`Invalid date format in product "${product.productName}" at index ${index}`);
+              throw new Error(`Invalid date format in product "${product.productName}".`);
+            }
+
+            if (quoteDate.isAfter(endDate)) {
+              throw new Error(
+                // `Invalid date range for product "${product.productName}" at index ${index}: productQuoteDate (${product.productQuoteDate}) must be before productEndDate (${product.productEndDate}).`
+                // `Invalid date range for product "${product.productName}" QuoteDate (${product.productQuoteDate}) must be before EndDate (${product.productEndDate}).`
+                `Invalid date range for product "${product.productName}".`
+              );
+            }
+          });
+
           quotation.slots = slots;
         }
       }
