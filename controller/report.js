@@ -240,29 +240,64 @@ class report {
       const clientIdObjs = clientIds.map(id => new mongoose.Types.ObjectId(id));
       console.log("clientIdObjs:", clientIdObjs);
 
+      // Define month boundaries (UTC) to avoid timezone edge cases
+      const monthStart = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
+      const nextMonthStart = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0));
+      console.log(`monthStart `, monthStart)
+      console.log(`nextMonthStart `, nextMonthStart)
+
       // Fetch orders for the specified clients
-      const orders = await Order.find({
-        orderStatus: 'Confirm',
-        clientId: { $in: clientIdObjs },
-        slots: {
-          $elemMatch: {
-            quoteDateObj: { $gte: new Date(year, month - 1, 1) },
-            endDateObj: { $lte: new Date(year, month, 0) }
-          }
-        }
-      })
-        .sort({ createdAt: -1 })
-        .lean();
+      // Fetch orders for the specified clients where slot overlaps the month
+      // Overlap condition: slot.quoteDateObj < nextMonthStart AND slot.endDateObj >= monthStart
+      const orders = await Order.aggregate([
+        {
+          $match: {
+            orderStatus: "Confirm",
+            clientId: { $in: clientIdObjs },
+            slots: {
+              $elemMatch: {
+                quoteDateObj: {
+                  $gte: monthStart,
+                  $lt: nextMonthStart,
+                },
+              },
+            },
+          },
+        },
+        // ✅ Join payments collection
+        {
+          $lookup: {
+            from: "payments",            // collection name in MongoDB
+            localField: "quoteId",       // field in Order
+            foreignField: "quotationId", // field in Payments
+            as: "payments",
+          },
+        },
+        // ✅ Optionally compute totals
+        {
+          $addFields: {
+            totalPaid: { $sum: "$payments.advancedAmount" }, // sum of all payment amounts
+            paymentsCount: { $size: "$payments" },   // number of payments
+          },
+        },
+        {
+          $sort: { createdAt: -1 },
+        },
+      ]);
+
 
       if (!orders || orders.length === 0) {
         return res.status(200).json({ message: "No orders found for the specified clients" });
       }
+
+      // console.log(`orders: `, orders);
 
       // Create a month-wise report object
       const monthWiseReport = {
         totalRevenue: 0,
         totalDiscount: 0,
         totalRoundOff: 0,
+        totalPayments: 0,
         orders: []
       };
       console.log(`orders[0]: `, orders[0].slots[0].products.map(product => ({
@@ -306,6 +341,7 @@ class report {
         monthWiseReport.totalRevenue += orderTotal;
         monthWiseReport.totalDiscount += discountAmount;
         monthWiseReport.totalRoundOff += roundOff;
+        monthWiseReport.totalPayments += order.totalPaid || 0;
 
         // Add order details to the report
         monthWiseReport.orders.push({
@@ -317,6 +353,13 @@ class report {
           totalAmount: orderTotal,
           roundOff,
           netAmount: orderTotal - discountAmount,
+          totalPaid: order.totalPaid || 0,
+          payments: order.payments.map(p => ({
+            paymentId: p._id,
+            amount: p.amount,
+            mode: p.mode,
+            date: p.createdAt,
+          })),
           products: slot.products.map(product => ({
             productId: product.productId,
             productName: product.productName,
