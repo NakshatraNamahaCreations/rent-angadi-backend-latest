@@ -273,11 +273,24 @@ class report {
             as: "payments",
           },
         },
+        // {
+        //   $project: {
+        //     // _id: 1,
+        //     // clientId: 1,
+        //     // orderDate: 1,
+        //     // GrandTotal: 1,
+        //     // discount: 1,
+        //     // roundOff: 1,
+        //     // totalPaid: 1,
+        //     payments: 1,
+        //   }
+        // },
         // ✅ Optionally compute totals
         {
           $addFields: {
             totalPaid: { $sum: "$payments.advancedAmount" }, // sum of all payment amounts
             paymentsCount: { $size: "$payments" },   // number of payments
+            paymentMode: { $first: "$payments.paymentMode" },
           },
         },
         {
@@ -290,7 +303,7 @@ class report {
         return res.status(200).json({ message: "No orders found for the specified clients" });
       }
 
-      // console.log(`orders: `, orders);
+      console.log(`orders list: `, orders.map(o => o.payments));
 
       // Create a month-wise report object
       const monthWiseReport = {
@@ -332,6 +345,7 @@ class report {
 
         // Calculate total for this order
         const orderTotal = order.GrandTotal || 0;
+        console.log(`order.GrandTotal orderTotal ${order._id}: `, order.GrandTotal);
         const discount = order.discount || 0;
         const discountAmount = allProductsTotal * (Number(discount || 0) / 100)
         console.log(`discountAmount: `, discountAmount);
@@ -356,8 +370,11 @@ class report {
           totalPaid: order.totalPaid || 0,
           payments: order.payments.map(p => ({
             paymentId: p._id,
-            amount: p.amount,
-            mode: p.mode,
+            amount: p.advancedAmount,
+            mode: p.paymentMode,
+            remarks: p.paymentRemarks,
+            comment: p.comment,
+            // status: p.status,
             date: p.createdAt,
           })),
           products: slot.products.map(product => ({
