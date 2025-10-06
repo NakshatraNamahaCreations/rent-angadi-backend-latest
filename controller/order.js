@@ -2,7 +2,7 @@ const ordermodel = require("../model/order");
 const ProductManagementModel = require("../model/product");
 const InventoryModel = require("../model/inventory");
 const mongoose = require("mongoose");
-const { parseDate } = require("../utils/dateString");
+const { parseDate, dateDiff } = require("../utils/dateString");
 const Order = require("../model/order");
 const Quotationmodel = require("../model/quotations");
 const Counter = require("../model/getNextSequence");
@@ -172,6 +172,46 @@ class order {
         updatedExecutiveId = null;
       }
 
+      // ============================================================
+      // 🧮 AUTO-CALCULATE GRAND TOTAL (matches frontend formula)
+      // ============================================================
+      let allProductsTotal = 0;
+
+      // Sum up all slot products’ totals      
+      for (const product of slots[0].products) {
+        // console.log(`product ${product.productName} & total:${product.total} `,);
+        console.log(`product: `, product);
+
+        // allProductsTotal += Number(product.total) || 0;
+        const days = dateDiff(product.productQuoteDate || order.slots[0].quoteDate, product.productEndDate || order.slots[0].endDate);
+        const price = Number(product.productPrice) || 0;
+        const qty = Number(product.quantity) || 0;
+
+        const total = price * qty * days;
+        console.log({ days, price, qty });
+        allProductsTotal += total;
+
+        // update product info for reference
+        product.days = days;
+        product.total = total;
+
+      }
+
+      const transport = Number(transportcharge || 0);
+      const manpower = Number(labourecharge || 0);
+      const refurb = Number(refurbishmentAmount || 0);
+      const discountPercent = Number(discount || 0);
+      const gstPercent = Number(GST || 0);
+
+      const discountAmt = (discountPercent / 100) * allProductsTotal;
+      const afterDiscount = allProductsTotal - discountAmt;
+      const totalWithCharges = afterDiscount + transport + manpower + refurb;
+      const gstAmt = (gstPercent / 100) * totalWithCharges;
+      const finalTotal = totalWithCharges + gstAmt; // ✅ GrandTotal
+      // ============================================================
+      console.log({ transport, manpower, refurb, discountPercent, discountAmt, GST, gstAmt, finalTotal });
+      // throw new Error('error')
+      // return
 
       // Create the order after inventory updates
       const newOrder = new ordermodel({
@@ -184,7 +224,7 @@ class order {
         executivename,
         slots,
         Address,
-        GrandTotal,
+        GrandTotal: finalTotal,
         roundOff: 0,
         refurbishmentAmount,
         paymentStatus,

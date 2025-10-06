@@ -3,6 +3,7 @@ const Quotationmodel = require("../model/quotations");
 const NodeCache = require("node-cache");
 const ProductModel = require("../model/product");
 const InventoryModel = require("../model/inventory");
+const Counter = require("../model/getNextSequence");
 const cache = new NodeCache({ stdTTL: 100, checkperiod: 120 });
 const moment = require("moment");
 const { parseDate } = require("../utils/dateString");
@@ -215,11 +216,17 @@ class Quotations {
       const latestQuotation = await Quotationmodel.findOne()
         .sort({ _id: -1 })
         .session(session);
-      const nextQuoteId = latestQuotation
-        ? `QT${(parseInt(latestQuotation.quoteId.replace("QT", ""), 10) + 1)
-          .toString()
-          .padStart(4, "0")}`
-        : "QT0001";
+      // const nextQuoteId = latestQuotation
+      //   ? `QT${(parseInt(latestQuotation.quoteId.replace("QT", ""), 10) + 1)
+      //     .toString()
+      //     .padStart(4, "0")}`
+      //   : "QT0001";
+
+      const nextQuoteSeq = await Counter.getNextSequence("quoteId");
+      const nextQuoteId = `QT${nextQuoteSeq.toString().padStart(4, "0")}`;
+
+
+      console.log(`nextQuoteId: `, nextQuoteId);
 
       let updatedExecutiveId = executiveId;
       if (executiveId === "") {

@@ -19,6 +19,14 @@ const compareDates = (dateStr1, dateStr2) => {
 	return date1.isSameOrAfter(date2); // true if date1 is same or later than date2
 };
 
+const dateDiff = (startStr, endStr) => {
+  const start = parseDate(startStr);
+  const end = parseDate(endStr);
+  if (!start || !end || isNaN(start) || isNaN(end)) return 1;
+
+  const diff = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
+  return diff > 0 ? diff : 1;
+};
 
 
-module.exports = { parseDate, compareDates };
+module.exports = { parseDate, compareDates, dateDiff };
