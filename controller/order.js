@@ -568,6 +568,14 @@ class order {
     // console.log({ productId, quantity, quoteDate, endDate, productQuoteDate, productEndDate, productSlot })
     // console.log(`typesof: `, typeof (quantity))
 
+    const startingDate = parseDate(productQuoteDate)
+    const endingDate = parseDate(productEndDate)
+
+    console.log(`startingDate: `, startingDate, `endingDate: `, endingDate);
+    if (startingDate > endingDate) {
+      return res.status(400).json({ message: 'End date should be greater than start date' })
+    }
+
     // Start a new session for the transaction
     const session = await mongoose.startSession();
 

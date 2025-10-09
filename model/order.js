@@ -63,6 +63,7 @@ const orderSchema = new mongoose.Schema({
   quoteId: {
     type: String,
     require: true,
+    unique: true,
   },
   invoiceId: {
     type: String,
@@ -188,7 +189,7 @@ orderSchema.pre("save", function (next) {
     this.slots = this.slots.map((slot) => {
       // Ensure slot is plain object
       const updatedSlot = slot.toObject ? slot.toObject() : slot;
-      
+
       if (updatedSlot.quoteDate && !updatedSlot.quoteDateObj) {
         try {
           // Parse "dd-MM-yyyy"
@@ -200,7 +201,7 @@ orderSchema.pre("save", function (next) {
           console.error("Invalid quoteDate:", updatedSlot.quoteDate, e);
         }
       }
-      
+
       if (updatedSlot.endDate && !updatedSlot.endDateObj) {
         try {
           const parsedEndDate = parse(

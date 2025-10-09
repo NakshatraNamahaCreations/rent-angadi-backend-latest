@@ -22,6 +22,7 @@ const QuotationSchema = new mongoose.Schema({
   quoteId: {
     type: String,
     required: true,
+    unique: true,
   },
   clientId: {
     type: mongoose.Schema.Types.ObjectId,
