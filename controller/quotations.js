@@ -213,9 +213,9 @@ class Quotations {
       });
 
       // Generate the next quotation ID
-      const latestQuotation = await Quotationmodel.findOne()
-        .sort({ _id: -1 })
-        .session(session);
+      // const latestQuotation = await Quotationmodel.findOne()
+      //   .sort({ _id: -1 })
+      //   .session(session);
       // const nextQuoteId = latestQuotation
       //   ? `QT${(parseInt(latestQuotation.quoteId.replace("QT", ""), 10) + 1)
       //     .toString()

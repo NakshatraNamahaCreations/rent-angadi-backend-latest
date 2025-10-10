@@ -361,6 +361,8 @@ class report {
         monthWiseReport.orders.push({
           orderId: order._id,
           clientId: order.clientId,
+          executiveName: order.executivename,
+          Address: order.Address,
           orderDate: quoteDate,
           allProductsTotal,
           discountAmount,

@@ -294,7 +294,7 @@ class ProductManagement {
         seater: seater ?? findProduct.seater,
 
         // ✅ Keep the old image if no new image is uploaded
-        ProductIcon: req.file ? req.file.filename : findProduct.ProductIcon,
+        ProductIcon: req.files ? file : findProduct.ProductIcon,
       };
 
       Object.keys(updatedFields).forEach(
