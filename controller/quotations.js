@@ -233,6 +233,48 @@ class Quotations {
         updatedExecutiveId = null;
       }
 
+      if (!slots[0].Products || slots[0].Products.length === 0) {
+        return res.status(400).json({ message: 'Products data is missing or empty' });
+      }
+
+      const daysDiff = (() => {
+        const start = quoteDate ? moment(quoteDate, "DD-MM-YYYY", true) : null;
+        const end = endDate ? moment(endDate, "DD-MM-YYYY", true) : null;
+        if (start && end && start.isValid() && end.isValid()) {
+          return Math.max(1, end.diff(start, 'days') + 1);
+        }
+        return 1;
+      })();
+
+      // Calculate the total for all products
+      const allProductTotal = daysDiff * slots[0].Products.reduce(
+        (sum, p) => (p.productId ? sum + (p.qty * p.price) : sum),
+        0
+      );
+
+      // console.log(`allProductTotal: `, allProductTotal);
+
+
+      // Calculate the discount amount
+      const discountAmt = allProductTotal * (Number(discount || 0) / 100);
+
+      // Calculate subtotal before GST (Total amount after discount, before GST and additional charges)
+      const subtotalBeforeGST = allProductTotal - discountAmt;
+
+      // Add manpower and transport charges
+      const totalBeforeCharges = subtotalBeforeGST + Number(labourecharge || 0) + Number(transportcharge || 0);
+
+      // Calculate GST
+      const gstAmt = totalBeforeCharges * (Number(GST || 0) / 100);
+
+      // Calculate the grand total (Total after charges + GST + rounding)
+      const calculatedGrandTotal = Math.round(totalBeforeCharges + gstAmt);
+
+
+      // console.log(`products: `, slots[0].Products);
+
+      // return res.status(400).json({ messgae: 'errror' })
+
       // Create the new quotation
       const newQuotation = new Quotationmodel({
         enquiryId,
@@ -252,7 +294,7 @@ class Quotations {
         transportcharge,
         inchargeName,
         inchargePhone,
-        GrandTotal,
+        GrandTotal: calculatedGrandTotal,
         adjustments,
         discount,
         GST,
