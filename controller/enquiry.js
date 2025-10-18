@@ -36,24 +36,40 @@ class Enquiry {
 
     const areDatesValid = compareDates(endDate, enquiryDate)
     if (!areDatesValid) {
-      return res.status(400).json({ error: "Dismantle Date must be same or less than Delivery Date" })
+      return res.status(400).json({ message: "Dismantle Date must be same or less than Delivery Date" })
     }
 
-    const processedProducts = products.map(product => ({
-      ...product,
-      qty: parseInt(product.qty, 10),
-      price: parseInt(product.price, 10),
-      total: parseInt(product.total, 10),
-    }));
-
-    console.log(`processedProducts products: `, processedProducts);
-
     try {
-      const latestCustomer = await Enquirymodel.findOne()
-        .sort({ enquiryId: -1 })
-        .exec();
-      const latestEquiry = latestCustomer ? latestCustomer.enquiryId : 0;
-      const newEquiry = latestEquiry + 1;
+
+      const processedProducts = products.map((product, index) => {
+        console.log(`product: `, product);
+        const qty = parseInt(product.qty, 10);
+        const price = parseInt(product.price, 10);
+        const total = parseInt(product.total, 10);
+
+        // Validate qty
+        if (isNaN(qty) || qty <= 0) {
+          // return res.status(400).json({ message: `Invalid quantity in ${product.ProductName}. Must be a number greater than 0.` });
+          // throw new Error(`Invalid quantity in ${product.name}. Qty Must be > 0.`);
+          throw new Error(`Each product must have quantity of at least 1`);
+        }
+
+        return {
+          ...product,
+          qty,
+          price,
+          total,
+        };
+      });
+
+
+      // console.log(`processedProducts products: `, processedProducts);
+
+      // const latestCustomer = await Enquirymodel.findOne()
+      //   .sort({ enquiryId: -1 })
+      //   .exec();
+      // const latestEquiry = latestCustomer ? latestCustomer.enquiryId : 0;
+      // const newEquiry = latestEquiry + 1;
       const enquiryId = await Counter?.getNextSequence("enquiryId");
 
       let updatedExecutiveId = executiveId;
@@ -64,6 +80,9 @@ class Enquiry {
       const clientIdObj = new mongoose.Types.ObjectId(clientId);
       console.log(`clientIdObj: `, clientIdObj);
 
+
+
+      // return res.status(400).json({ message: 'working on enquiry' })
 
       // Create a new Enquiry with the incremented enquiryId
       const newEnquiry = new Enquirymodel({
@@ -97,7 +116,7 @@ class Enquiry {
       }
     } catch (error) {
       console.error(error);
-      return res.status(500).json({ error: "Failed to create Enquiry" });
+      return res.status(500).json({ error: error.message || "Failed to create Enquiry" });
     }
   }
 

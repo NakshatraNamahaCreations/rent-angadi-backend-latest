@@ -47,7 +47,7 @@ const executiveController = {
       if (existingExecutive) {
         return res.status(400).json({
           message: existingExecutive.phoneNumber === phoneNumber
-            ? "Phone Number already exists for this client"
+            ? "Phone Number already exists"
             : "Email already exists for this client"
         });
       }
