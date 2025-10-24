@@ -404,6 +404,144 @@ class report {
     }
   }
 
+
+
+
+  async productReportDates(req, res) {
+    try {
+      const { fromDate, toDate } = req.query;
+
+      console.log(`fromDate: ${fromDate}, toDate: ${toDate}`);
+
+      // Validate input
+      if (!fromDate || !toDate) {
+        return res.status(400).json({ message: "fromDate and toDate are required." });
+      }
+
+      // Convert to Date objects
+      const start = new Date(fromDate);
+      const end = new Date(toDate);
+
+      console.log(`Parsed Dates - start: ${start.toISOString()}, end: ${end.toISOString()}`);
+
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        return res.status(400).json({ message: "Invalid date format." });
+      }
+
+      if (end < start) {
+        return res.status(400).json({ message: "fromDate cannot be after toDate." });
+      }
+
+      // ✅ Fetch all confirmed orders that have at least one slot within the range
+      const orders = await Order.find({
+        orderStatus: "Confirm",
+        // "slots.quoteDateObj": { $gte: start, $lte: end },
+        slots: {
+          $elemMatch: {
+            $and: [
+              { quoteDateObj: { $lte: end } },  // slot starts before range ends
+              { endDateObj: { $gte: start } },  // slot ends after range starts
+            ],
+          },
+        },
+
+      })
+        .lean()
+        .sort({ "slots.quoteDateObj": -1 });
+
+      console.log(`orders: ${orders.length}`);
+      console.log(`orders: ${orders.map(o => o._id)}`);
+
+      const report = {
+        totalRevenue: 0,
+        products: new Map(),
+      };
+
+      // ✅ Loop through orders
+      orders.forEach((order) => {
+        order.slots?.forEach((slot) => {
+          if (!slot.quoteDateObj || !slot.endDateObj) return;
+
+          const slotStart = new Date(slot.quoteDateObj);
+          const slotEnd = new Date(slot.endDateObj);
+
+          // ✅ include slot if it overlaps the selected date range
+          const overlaps =
+            slotStart <= end && slotEnd >= start;
+          if (!overlaps) return;
+
+          slot.products?.forEach((product) => {
+            const quoteDateP = parseDate(product.productQuoteDate);
+            const endDateP = parseDate(product.productEndDate);
+            if (!quoteDateP || !endDateP) return;
+
+            const totalDays =
+              Math.ceil((endDateP - quoteDateP) / (24 * 60 * 60 * 1000)) + 1;
+
+            const quantity = Number(product.quantity || 0);
+            const price = Number(product.productPrice || 0);
+            const discount = Number(order.discount || 0);
+
+            const total =
+              quantity * price * totalDays * (1 - discount / 100);
+
+            if (!report.products.has(product.productName)) {
+              report.products.set(product.productName, {
+                productId: product.productId,
+                totalRevenue: 0,
+                quantity: 0,
+                totalDays: 0,
+              });
+            }
+
+            const stats = report.products.get(product.productName);
+            stats.quantity += quantity;
+            stats.totalRevenue += total;
+            stats.totalDays += totalDays;
+
+            report.totalRevenue += total;
+          });
+        });
+      });
+
+      // ✅ Format final response
+      const finalReport = {
+        fromDate,
+        toDate,
+        totalRevenue: report.totalRevenue,
+        totalProducts: report.products.size,
+        products: Array.from(report.products.entries())
+          .map(([name, stats]) => ({
+            name,
+            // productId: stats.productId,
+            totalRevenue: stats.totalRevenue,
+            // quantity: stats.quantity,
+            // totalDays: stats.totalDays,
+          }))
+          .sort((a, b) => b.totalRevenue - a.totalRevenue),
+      };
+
+      return res.status(200).json(finalReport);
+    } catch (error) {
+      console.error("Error in productReportByMonth:", error);
+      return res.status(500).json({
+        message: "Internal server error.",
+        error: error.message,
+      });
+    }
+  }
+
+
+
+
+
+
+
+
+
+
+
+
 }
 
 const reportController = new report();
