@@ -168,6 +168,7 @@ const orderSchema = new mongoose.Schema({
   },
   labourecharge: { type: Number, default: 0 },
   transportcharge: { type: Number, default: 0 },
+  additionalTransportation: { type: Number, default: 0 },
   discount: {
     type: Number,
   },

@@ -8,6 +8,7 @@ const Quotationmodel = require("../model/quotations");
 const Counter = require("../model/getNextSequence");
 const payment = require("../model/payment");
 const moment = require("moment");
+const calculateOrderTotal = require("../utils/orderCalculation");
 
 class order {
   async invoiceId(req, res) {
@@ -699,10 +700,11 @@ class order {
       });
       console.log({ subtotal })
 
-      const { labourecharge, transportcharge, discount, GST, GrandTotal, refurbishmentAmount } = order
+      const { labourecharge, transportcharge, discount, GST, GrandTotal, refurbishmentAmount, additionalTransportation } = order
+      console.log({ labourecharge, transportcharge, discount, GST, refurbishmentAmount, additionalTransportation })
       const discountAmt = subtotal * (Number(discount || 0) / 100);
       const totalBeforeCharges = subtotal - discountAmt;
-      const totalAfterCharges = totalBeforeCharges + Number(labourecharge || 0) + Number(transportcharge || 0) + Number(refurbishmentAmount || 0);
+      const totalAfterCharges = totalBeforeCharges + Number(labourecharge || 0) + Number(transportcharge || 0) + Number(refurbishmentAmount || 0) + Number(additionalTransportation || 0);
 
       // Calculate GST
       const gstAmt = totalAfterCharges * (Number(GST || 0) / 100);
@@ -882,10 +884,10 @@ class order {
       });
       console.log({ subtotal })
 
-      const { labourecharge, transportcharge, discount, GST, GrandTotal, refurbishmentAmount } = order
+      const { labourecharge, transportcharge, discount, GST, GrandTotal, refurbishmentAmount, additionalTransportation } = order
       const discountAmt = subtotal * (Number(discount || 0) / 100);
       const totalBeforeCharges = subtotal - discountAmt;
-      const totalAfterCharges = totalBeforeCharges + Number(labourecharge || 0) + Number(transportcharge || 0) + Number(refurbishmentAmount || 0);
+      const totalAfterCharges = totalBeforeCharges + Number(labourecharge || 0) + Number(transportcharge || 0) + Number(refurbishmentAmount || 0) + Number(additionalTransportation || 0);
 
       const gstAmt = totalAfterCharges * (Number(GST || 0) / 100);
 
@@ -899,7 +901,7 @@ class order {
 
       await order.save({ session });
 
-      console.log({ subtotal, totalBeforeCharges, discountAmt, totalAfterCharges, gstAmt, grandTotal, labourecharge, transportcharge, discount, GST })
+      console.log({ subtotal, totalBeforeCharges, discountAmt, totalAfterCharges, gstAmt, grandTotal, labourecharge, transportcharge, discount, GST, additionalTransportation })
 
 
       await session.commitTransaction();
@@ -927,18 +929,26 @@ class order {
 
 
   async updateOrderFields(req, res) {
-    const { orderId, roundOff } = req.body;
-    console.log({ orderId, roundOff });
+    const { orderId, additionalTransportation } = req.body;
+    console.log({ orderId, additionalTransportation });
 
-    if (typeof roundOff !== 'number' || isNaN(roundOff)) {
+    if (typeof additionalTransportation !== 'number' || isNaN(additionalTransportation)) {
       return res.status(400).json({
-        message: "Round off must be a valid number",
+        message: "Additional transportation must be a valid number",
       });
     }
 
+    if (additionalTransportation < 0) {
+      return res.status(400).json({
+        message: "Additional transportation cannot be negative",
+      });
+    }
+
+    const { order, breakdown: { grandTotal } } = await calculateOrderTotal(orderId, additionalTransportation);
+
     const updatedOrder = await Order.findByIdAndUpdate(
       orderId,
-      { roundOff },
+      { additionalTransportation, GrandTotal: grandTotal },
       { new: true }
     );
 
@@ -1377,13 +1387,13 @@ class order {
       });
 
       // Apply discount, transport, and other charges
-      const { labourecharge, transportcharge, discount, GST, refurbishmentAmount } = order;
+      const { labourecharge, transportcharge, discount, GST, refurbishmentAmount, additionalTransportation } = order;
       // subtotal += Number(labourecharge || 0) + Number(transportcharge || 0);
 
       // Apply discount
       const discountAmt = subtotal * (Number(discount || 0) / 100);
       const totalBeforeCharges = subtotal - discountAmt;
-      const totalAfterCharges = totalBeforeCharges + Number(labourecharge || 0) + Number(transportcharge || 0) + Number(refurbishmentAmount || 0);
+      const totalAfterCharges = totalBeforeCharges + Number(labourecharge || 0) + Number(transportcharge || 0) + Number(refurbishmentAmount || 0) + Number(additionalTransportation || 0);
 
       // Calculate GST
       const gstAmt = totalAfterCharges * (Number(GST || 0) / 100);
