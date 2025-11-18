@@ -5,6 +5,10 @@ const ProductManagementSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  normalizedProductName: {
+    type: String,
+    unique: true,
+  },  
   ProductDesc: {
     type: String,
   },

@@ -104,8 +104,25 @@ class ProductManagement {
 
       // console.log(newProductSKU, "newProductSKU"); // Outputs SKU002, SKU003, etc.
 
+      // 🔥 Normalize before checking
+      const normalizedProductName = ProductName
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, " ");
+
+      // 🔥 Check if product already exists using normalized field
+      const existed = await ProductManagementModel.findOne({ normalizedProductName });
+
+      if (existed) {
+        return res.status(400).json({
+          message: "Product with this name already exists.",
+        });
+      }
+
+
       let add = new ProductManagementModel({
-        ProductName,
+        ProductName: ProductName.trim(),
+        normalizedProductName,
         ProductCategory,
         ProductSubcategory,
         ProductDesc,
@@ -268,6 +285,36 @@ class ProductManagement {
         return res.status(404).json({ error: "No such record found" });
       }
 
+      let updated = {
+        ProductName: findProduct.ProductName,
+        normalizedProductName: findProduct.normalizedProductName,
+      };
+
+
+      if (ProductName) {
+        // 🔥 Normalize before checking
+        const normalizedProductName = ProductName
+          .toLowerCase()
+          .trim()
+          .replace(/\s+/g, " ");
+
+        // 🔥 Check if product already exists using normalized field
+        const existed = await ProductManagementModel.findOne({
+          _id: { $ne: id }, // Exclude current product
+          normalizedProductName,
+        });
+
+
+        if (existed) {
+          return res.status(400).json({
+            message: "Product with this name already exists.",
+          });
+        }
+
+        updated.ProductName = ProductName.trim()
+        updated.normalizedProductName = normalizedProductName;
+      }
+
       // basic idea: total is alaways "productstock + repair"
       let newProductStock
       let newRepairCount = Number(repairCount) ?? 0;
@@ -277,7 +324,8 @@ class ProductManagement {
 
       // ✅ Handle single image update
       const updatedFields = {
-        ProductName: ProductName ?? findProduct.ProductName,
+        ProductName: updated.ProductName,
+        normalizedProductName: updated.normalizedProductName,
         ProductCategory: ProductCategory ?? findProduct.ProductCategory,
         ProductSubcategory:
           ProductSubcategory ?? findProduct.ProductSubcategory,
@@ -312,20 +360,6 @@ class ProductManagement {
         message: "Product updated successfully",
         data: updatedProduct,
       });
-
-      let data = await ProductManagementModel.findOneAndUpdate(
-        { _id: id },
-        updateObj,
-        { new: true }
-      );
-
-      if (data) {
-        return res.json({ success: "Updated", Product: data });
-      } else {
-        return res
-          .status(404)
-          .json({ success: false, message: "Data not found" });
-      }
     } catch (error) {
       console.error(error);
       return res.status(500).json({ success: false, message: "Server error" });
