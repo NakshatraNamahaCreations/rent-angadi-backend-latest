@@ -1,6 +1,7 @@
 const InventoryModel = require("../model/inventory");
 const ProductManagementModel = require("../model/product");
 const { parseDate } = require("../utils/dateString");
+const moment = require("moment");
 
 class Inventory {
   async updateInventory(req, res) {
@@ -228,24 +229,47 @@ class Inventory {
       // const start = parseDate(startDate.trim());
       // const end = parseDate(endDate.trim());
 
-      // if date format is DD/MM/YYYY
-      const start = startDate.trim();
-      const end = endDate.trim();
+      // // if date format is DD/MM/YYYY
+      // const start = startDate.trim();
+      // const end = endDate.trim();
+
+      const start = moment(startDate, "DD-MM-YYYY");
+      const end = moment(endDate, "DD-MM-YYYY");
+
+      console.log("start: ", start)
+      console.log("end: ", end)
 
       // Get the product details
       const product = await ProductManagementModel.findById(productId).lean();
       if (!product) {
         return res.status(404).json({ message: "Product not found." });
       }
+      // Fetch all inventory for the product
+      const inventory = await InventoryModel.find({ productId }).lean();
 
-      // Fetch inventory entries overlapping with the given date range
-      const overlappingInventory = await InventoryModel.find({
-        productId,
-        $or: [
-          { startdate: { $lte: end }, enddate: { $gte: start } },
-          { startdate: { $lte: start }, enddate: { $gte: start } },
-        ],
+      // console.log("inventory: ", inventory)
+
+      // Filter inventory overlapping with the requested date range
+      const overlappingInventory = inventory.filter(item => {
+        const invStart = moment(item.startdate, "DD-MM-YYYY");
+        const invEnd = moment(item.enddate, "DD-MM-YYYY");
+        console.log("inv : ", invStart, invEnd)
+
+        return invStart.isSameOrBefore(end) && invEnd.isSameOrAfter(start);
       });
+
+      // console.log("overlappingInventory1: ", overlappingInventory1)
+
+      // return
+
+      // // Fetch inventory entries overlapping with the given date range
+      // const overlappingInventory = await InventoryModel.find({
+      //   productId,
+      //   $or: [
+      //     { startdate: { $lte: end }, enddate: { $gte: start } },
+      //     { startdate: { $lte: start }, enddate: { $gte: start } },
+      //   ],
+      // });
 
       // Calculate total reserved quantity from the overlapping inventory
       const totalReserved = overlappingInventory.reduce(
